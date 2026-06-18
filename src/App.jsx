@@ -1074,3 +1074,49 @@ const MS = {
   btnP:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"11px",fontSize:"14px",fontWeight:"700",cursor:"pointer",marginTop:"2px"},
   btnS:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_ORANGE},#E67E22)`,color:"#fff",border:"none",borderRadius:"10px",padding:"11px",fontSize:"14px",fontWeight:"700",cursor:"pointer"},
 };
+  return (
+    <div className="flex h-screen bg-slate-100">
+      {/* 1. แถบเมนูด้านซ้ายของคุณที่มีอยู่แล้ว */}
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      {/* 2. ส่วนพื้นที่ฝั่งขวา: แบ่งพื้นที่เป็น บน (Header) และ ล่าง (Content) */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* ─── แถบ Header ด้านบนที่เพิ่มเข้ามาใหม่ พร้อมปุ่มเปิด-ปิดบอท ─── */}
+        <header className="flex justify-between items-center px-8 py-4 bg-white border-b border-slate-200 shadow-sm">
+          <h1 className="text-xl font-bold text-slate-800">
+            {activeTab === 'videos' && '🎥 จัดการวิดีโอ'}
+            {activeTab === 'products' && '📦 ลิงก์สินค้า'}
+            {activeTab === 'logs' && '📜 บันทึกระบบบอท'}
+            {activeTab === 'settings' && '⚙️ ตั้งค่าโปรแกรม'}
+          </h1>
+          
+          {/* ปุ่มควบคุมบอทหลัก (Master Control) */}
+          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+            <span className="text-xs font-semibold text-slate-500 px-2">สถานะบอท:</span>
+            
+            <button onClick={() => alert('กำลังเปิดระบบบอท...')} 
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              เปิดบอท (Start)
+            </button>
+
+            <button onClick={() => alert('หยุดบอทชั่วคราวเรียบร้อยแล้ว')} 
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-sm transition-all">
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              หยุดชั่วคราว (Pause)
+            </button>
+          </div>
+        </header>
+
+        {/* 3. ส่วนเนื้อหาหลักด้านล่าง (ดึงฟังก์ชันเดิมมาทำงานในนี้) */}
+        <main className="flex-1 overflow-auto p-8">
+          {renderContent()}
+        </main>
+
+      </div>
+    </div>
+  );
+};
+
+export default App;
