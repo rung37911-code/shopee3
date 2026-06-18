@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { Play, Square, RefreshCw, Eye, ArrowRight, ArrowLeft, Layers, Settings, ListOrdered, FileText } from "lucide-react";
 
 const SHOPEE_RED = "#EE4D2D";
 const SHOPEE_ORANGE = "#F5A623";
+const TIKTOK_BLACK = "#121212";
+const TIKTOK_CYAN = "#00f2fe";
 const BG_DARK = "#0A0A14";
 const BG_CARD = "#13132A";
 const TEXT_MAIN = "#F0F0F0";
@@ -13,10 +16,7 @@ const DEMO_KEY = "SCL-MO-DEMO0001";
 import { supabase, isSupabaseConfigured } from "./supabase.js";
 
 // ── License Key storage ──
-// ใช้ตาราง Supabase ชื่อ "license_keys" (รองรับคนใช้พร้อมกันจำนวนมาก)
-// ถ้ายังไม่ตั้งค่า Supabase จะ fallback ไปใช้ localStorage (เครื่องใครเครื่องมัน)
-
-const KEY_STORE = {}; // in-memory cache สำหรับ session นี้
+const KEY_STORE = {}; 
 
 function codeFromStorageKey(k) { return k.replace("key:", ""); }
 
@@ -77,7 +77,6 @@ async function kList() {
   return [...mem];
 }
 
-// แปลงระหว่างรูปแบบ JS object <-> แถวตาราง Supabase
 function supaRowToKeyData(row) {
   return {
     code: row.code, type: row.type, buyerName: row.buyer_name, note: row.note,
@@ -114,10 +113,10 @@ function getExpiry(type) {
 }
 
 const TEMPLATES = [
-  { id:"hype", name:"🔥 ไฟแรง", fn:(p,pr,d)=>`🔥🛒 ปักตะกร้าด่วน!!\n\n✨ ${p}\n💰 ราคา ${pr} บาท\n${d?`🎯 ลด ${d}%\n`:""}⚡ สต็อกมีจำกัด!\n📲 กดลิงก์ในโปรไฟล์\n\n#Shopee #ปักตะกร้า #ลดราคา` },
-  { id:"review", name:"⭐ รีวิว", fn:(p,pr,d)=>`⭐ รีวิวจริง ไม่ปิด!\n\n📦 ${p}\n💵 ${pr} บาท\n${d?`💸 ประหยัด ${d}%\n`:""}✅ ของดี ราคาคุ้ม!\n\n#รีวิว #Shopee #ของดีราคาถูก` },
-  { id:"flash", name:"⚡ Flash Sale", fn:(p,pr,d)=>`⚡ FLASH SALE แค่วันนี้!!\n\n🎁 ${p}\n🏷️ ${pr} บาท!\n${d?`🔴 ลด ${d}%\n`:""}⏰ ราคานี้มีเวลาจำกัด!\n\n#FlashSale #Shopee #Deal` },
-  { id:"tiktok", name:"🎵 TikTok", fn:(p,pr,d)=>`POV: เจอของดีราคาโคตรถูก 😱\n\n${p} แค่ ${pr} บาท!!${d?` (ลด ${d}%)`:""}\n\nแบกตะกร้าก่อน!\n\n#fy #fyp #Shopee #ปักตะกร้า` },
+  { id:"hype", name:"🔥 ไฟแรง", fn:(p,pr,d,plat)=>plat==="shopee" ? `🔥🛒 ปักตะกร้าด่วน!!\n\n✨ ${p}\n💰 ราคา ${pr} บาท\n${d?`🎯 ลด ${d}%\n`:""}⚡ สต็อกมีจำกัด!\n📲 กดลิงก์ในโปรไฟล์\n\n#Shopee #ปักตะกร้า #ลดราคา` : `🔥🛒 พิกัดในตะกร้าเหลืองด่วน!!\n\n✨ ${p}\n💰 ราคาพิเศษ ${pr} บาท\n${d?`🎯 ลดจุกๆ ${d}%\n`:""}⚡ ช้าหมดอดนะรอบนี้!\n📲 จิ้มที่ตะกร้าซ้ายมือบนคลิปได้เลย\n\n#TikTokครีเอเตอร์ #TikTokShop #ปักตะกร้า #ลดราคา` },
+  { id:"review", name:"⭐ รีวิว", fn:(p,pr,d,plat)=>plat==="shopee" ? `⭐ รีวิวจริง ไม่ปิด!\n\n📦 ${p}\n💵 ${pr} บาท\n${d?`💸 ประหยัด ${d}%\n`:""}✅ ของดี ราคาคุ้ม!\n\n#รีวิว #Shopee #ของดีราคาถูก` : `⭐ รีวิวจากผู้ใช้จริง!\n\n📦 ${p}\n💵 เพียง ${pr} บาท\n${d?`💸 ประหยัดไปอีก ${d}%\n`:""}✅ ของตรงปก ไม่จกตา ดีจริงบอกต่อ!\n\n#รีวิวของดี #TikTokShop #รีวิว #ของดีราคาถูก` },
+  { id:"flash", name:"⚡ เซลเดือด", fn:(p,pr,d,plat)=>plat==="shopee" ? `⚡ FLASH SALE แค่วันนี้!!\n\n🎁 ${p}\n🏷️ ${pr} บาท!\n${d?`🔴 ลด ${d}%\n`:""}⏰ ราคานี้มีเวลาจำกัด!\n\n#FlashSale #Shopee #Deal` : `⚡ ดีลเดือด นาทีทอง!!\n\n🎁 ${p}\n🏷️ ราคาลดเหลือ ${pr} บาท!\n${d?`🔴 หั่นราคาลง ${d}%\n`:""}⏰ เฉพาะในคลิปนี้เท่านั้น รีบกด!\n\n#ดีลเด็ด #TikTokShop #FlashSale #ลดราคา` },
+  { id:"tiktok", name:"🎵 สไตล์วัยรุ่น", fn:(p,pr,d,plat)=>plat==="shopee" ? `POV: เจอของดีราคาโคตรถูก 😱\n\n${p} แค่ ${pr} บาท!!${d?` (ลด ${d}%)`:""}\n\nแบกตะกร้าก่อน!\n\n#fy #fyp #Shopee #ปักตะกร้า` : `POV: แฟนบังคับให้รีวิวสิ่งนี้ 😱\n\n${p} แค่ ${pr} บาทเอง!!${d?` (ลดตั้ง ${d}%)`:""}\n\nจิ้มตะกร้าเหลืองข้างล่างด่วนก่อนหมดโปร!\n\n#fyp #ของมันต้องมี #TikTokShop #ตะกร้าเหลือง` },
 ];
 const HOOKS = ["หยุดเลื่อนก่อน! นี่คือสิ่งที่คุณต้องการ","ราคานี้ต้องบอกต่อ!!","เพื่อนบอกมา ลองแล้วติดใจ","ปักตะกร้าไว้ก่อน ตัดสินใจทีหลัง","ลดแล้ว! อย่าพลาด!"];
 
@@ -127,7 +126,6 @@ export default function App() {
   const [sess, setSess] = useState(null);
 
   useEffect(() => {
-    // seed demo key once (เฉพาะตอนยังไม่มี)
     (async () => {
       const existing = await kGet(`key:${DEMO_KEY}`);
       if (!existing) {
@@ -153,7 +151,7 @@ export default function App() {
   return <LoginScreen onSuccess={login} />;
 }
 
-// ─── LOGIN ───────────────────────────────────────────────────
+// ─── LOGIN SCREEN ───────────────────────────────────────────
 function LoginScreen({ onSuccess }) {
   const [mode, setMode] = useState("user");
   const [keyVal, setKeyVal] = useState("");
@@ -185,9 +183,9 @@ function LoginScreen({ onSuccess }) {
     <div style={S.bg}>
       <div style={S.box}>
         <div style={S.logoWrap}>
-          <div style={{fontSize:"40px"}}>🛒</div>
-          <div style={S.logoText}>Shopee<span style={{color:SHOPEE_ORANGE}}>Clip</span>AI</div>
-          <div style={S.logoSub}>ระบบสร้างคลิปปักตะกร้า + แคปชั่น อัตโนมัติ</div>
+          <div style={{fontSize:"40px"}}>🚀</div>
+          <div style={S.logoText}>ClipAI<span style={{color:SHOPEE_ORANGE}}>Master</span></div>
+          <div style={S.logoSub}>ระบบสร้างคลิปปักตะกร้า + แคปชั่น อัตโนมัติ (Shopee & TikTok)</div>
         </div>
         <div style={S.tabRow}>
           <button style={S.tab(mode==="user")} onClick={()=>{setMode("user");setErr("");}}>🔑 เข้าใช้งาน</button>
@@ -218,7 +216,7 @@ function LoginScreen({ onSuccess }) {
           </>
         )}
         <div style={{textAlign:"center",marginTop:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>
-          ShopeeClipAI v2.0 • Powered by Claude AI
+          ClipAIMaster v2.5 • Dual Platform Support
         </div>
       </div>
     </div>
@@ -239,7 +237,7 @@ const LS = {
   btn:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"13px",fontSize:"15px",fontWeight:"700",cursor:"pointer",marginTop:"4px"},
 };
 
-// ─── ADMIN ───────────────────────────────────────────────────
+// ─── ADMIN PANEL ────────────────────────────────────────────
 function AdminPanel({ onLogout }) {
   const [tab, setTab] = useState("create");
   const [keys, setKeys] = useState([]);
@@ -301,12 +299,12 @@ function AdminPanel({ onLogout }) {
       <div style={A.hdr}>
         <div>
           <div style={A.hdrT}>⚙️ Admin Panel</div>
-          <div style={A.hdrS}>ShopeeClipAI — จัดการ License Keys</div>
+          <div style={A.hdrS}>ClipAI — จัดการ License Keys ทั้งหมด</div>
         </div>
         <button style={A.logoutBtn} onClick={onLogout}>ออกจากระบบ</button>
       </div>
       <div style={A.statsRow}>
-        {[["🔑 ทั้งหมด",stats.total,"#667eea"],["✅ ใช้งานได้",stats.active,GREEN],["❌ หมดอายุ",stats.expired,"#e74c3c"],
+        {[["🔑 ทั้งหมด",stats.total,"#667eea"],["✅ ใช้ได้",stats.active,GREEN],["❌ หมดอายุ",stats.expired,"#e74c3c"],
           ["📅 รายเดือน",stats.monthly,SHOPEE_ORANGE],["📆 รายปี",stats.yearly,"#9B59B6"],["♾️ ตลอดชีพ",stats.lifetime,"#1ABC9C"]
         ].map(([l,v,c])=>(
           <div key={l} style={A.statBox}>
@@ -340,7 +338,7 @@ function AdminPanel({ onLogout }) {
             <button style={A.btnP} onClick={createKey}>🔑 สร้าง Key ใหม่</button>
             {created && (
               <div style={{marginTop:"14px",background:"rgba(39,174,96,0.1)",border:"1px solid rgba(39,174,96,0.3)",borderRadius:"12px",padding:"14px"}}>
-                <div style={{fontSize:"13px",color:TEXT_MUTED,marginBottom:"6px"}}>✅ สร้างสำเร็จ! ส่งให้ลูกค้าได้เลย</div>
+                <div style={{fontSize:"13px",color:TEXT_MUTED,marginBottom:"6px"}}>✅ สร้างสำเร็จ!</div>
                 <div style={{fontFamily:"monospace",fontSize:"18px",fontWeight:"800",color:GREEN,letterSpacing:"2px",textAlign:"center",padding:"10px",background:"rgba(0,0,0,0.3)",borderRadius:"8px",marginBottom:"8px"}}>{created}</div>
                 <button style={{width:"100%",background:GREEN,color:"#fff",border:"none",borderRadius:"8px",padding:"9px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}}
                   onClick={()=>copyKey(created)}>{copied?"✓ คัดลอกแล้ว":"📋 คัดลอก Key"}</button>
@@ -352,26 +350,22 @@ function AdminPanel({ onLogout }) {
           <>
             <input style={{...A.input,marginBottom:"10px"}} placeholder="🔍 ค้นหา Key / ชื่อผู้ซื้อ..." value={search} onChange={e=>setSearch(e.target.value)} />
             {loading ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>⏳ กำลังโหลด...</div>
-            : filtered.length===0 ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>{keys.length===0?"ยังไม่มี Key — ไปสร้าง Key ก่อนนะครับ":"ไม่พบ Key ที่ค้นหา"}</div>
+            : filtered.length===0 ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>ไม่พบข้อมูล</div>
             : filtered.map(k=>{
-              const exp=isExpired(k); const dl=daysLeft(k.expiresAt);
+              const exp=isExpired(k);
               return (
-                <div key={k.keyCode} style={{background:k.active&&!exp?BG_CARD:"rgba(20,10,10,0.6)",borderRadius:"12px",padding:"14px",marginBottom:"10px",border:k.active&&!exp?"1px solid rgba(255,255,255,0.08)":"1px solid rgba(238,77,45,0.2)",opacity:k.active&&!exp?1:0.7}}>
+                <div key={k.keyCode} style={{background:k.active&&!exp?BG_CARD:"rgba(20,10,10,0.6)",borderRadius:"12px",padding:"14px",marginBottom:"10px",border:k.active&&!exp?"1px solid rgba(255,255,255,0.08)":"1px solid rgba(238,77,45,0.2)"}}>
                   <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
-                    <span style={{fontFamily:"monospace",fontSize:"14px",fontWeight:"800",color:TEXT_MAIN,letterSpacing:"1px"}}>{k.keyCode}</span>
-                    <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"20px",background:k.type==="monthly"?`${SHOPEE_ORANGE}20`:k.type==="yearly"?"#9B59B620":"#1ABC9C20",color:k.type==="monthly"?SHOPEE_ORANGE:k.type==="yearly"?"#9B59B6":"#1ABC9C",border:`1px solid ${k.type==="monthly"?SHOPEE_ORANGE:k.type==="yearly"?"#9B59B6":"#1ABC9C"}40`}}>
+                    <span style={{fontFamily:"monospace",fontSize:"14px",fontWeight:"800",color:TEXT_MAIN}}>{k.keyCode}</span>
+                    <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"20px",background:"rgba(255,255,255,0.1)",color:SHOPEE_ORANGE}}>
                       {k.type==="monthly"?"รายเดือน":k.type==="yearly"?"รายปี":"ตลอดชีพ"}
                     </span>
                   </div>
-                  <div style={{fontSize:"12px",color:TEXT_MUTED,marginBottom:"3px"}}>👤 {k.buyerName}</div>
-                  {k.note&&<div style={{fontSize:"12px",color:TEXT_MUTED,marginBottom:"3px"}}>📝 {k.note}</div>}
-                  <div style={{fontSize:"12px",color:TEXT_MUTED,marginBottom:"3px"}}>
-                    ⏰ หมดอายุ: {exp?<span style={{color:"#e74c3c"}}>หมดแล้ว</span>:<span style={{color:dl!==null&&dl<=7?SHOPEE_ORANGE:GREEN}}>{fmtDate(k.expiresAt)}{dl!==null?` (เหลือ ${dl} วัน)`:""}</span>}
-                  </div>
-                  <div style={{fontSize:"12px",color:TEXT_MUTED,marginBottom:"8px"}}>🔐 Login: {k.loginCount||0} ครั้ง</div>
-                  <div style={{display:"flex",gap:"8px"}}>
-                    <button style={{flex:1,padding:"7px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"700",cursor:"pointer",background:k.active?"rgba(230,126,34,0.2)":"rgba(39,174,96,0.2)",color:k.active?SHOPEE_ORANGE:GREEN}} onClick={()=>toggleKey(k.keyCode,k.active)}>{k.active?"🔒 ระงับ":"✅ เปิดใช้"}</button>
-                    <button style={{flex:1,padding:"7px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"700",cursor:"pointer",background:"rgba(231,76,60,0.2)",color:"#e74c3c"}} onClick={()=>deleteKey(k.keyCode)}>🗑️ ลบ</button>
+                  <div style={{fontSize:"12px",color:TEXT_MUTED}} { ... (k.buyerName ? { children: `👤 ${k.buyerName} | 📝 ${k.note}` } : {}) }/>
+                  <div style={{fontSize:"12px",color:TEXT_MUTED}}>⏰ หมดอายุ: {exp?<span style={{color:"#e74c3c"}}>หมดแล้ว</span>:<span>{fmtDate(k.expiresAt)}</span>}</div>
+                  <div style={{display:"flex",gap:"8px",marginTop:"8px"}}>
+                    <button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(255,255,255,0.1)",color:TEXT_MAIN}} onClick={()=>toggleKey(k.keyCode,k.active)}>{k.active?"🔒 ระงับ":"✅ เปิดใช้"}</button>
+                    <button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(231,76,60,0.2)",color:"#e74c3c"}} onClick={()=>deleteKey(k.keyCode)}>🗑️ ลบ</button>
                   </div>
                 </div>
               );
@@ -384,27 +378,27 @@ function AdminPanel({ onLogout }) {
 }
 const AS = {
   wrap:{minHeight:"100vh",background:BG_DARK,color:TEXT_MAIN,fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif"},
-  hdr:{background:"linear-gradient(135deg,#1a1a3e,#0D1B2A)",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid rgba(255,255,255,0.07)"},
-  hdrT:{fontSize:"18px",fontWeight:"800"},
-  hdrS:{fontSize:"12px",color:TEXT_MUTED},
-  logoutBtn:{background:"rgba(255,255,255,0.08)",border:"none",color:TEXT_MUTED,borderRadius:"8px",padding:"6px 14px",fontSize:"13px",cursor:"pointer"},
+  hdr:{background:"linear-gradient(135deg,#1a1a3e,#0D1B2A)",padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"},
+  hdrT:{fontSize:"18px",fontWeight:"800"},hdrS:{fontSize:"12px",color:TEXT_MUTED},
+  logoutBtn:{background:"rgba(255,255,255,0.08)",border:"none",color:TEXT_MUTED,borderRadius:"8px",padding:"6px 14px",cursor:"pointer"},
   statsRow:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",padding:"14px 16px"},
-  statBox:{background:BG_CARD,borderRadius:"12px",padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"},
+  statBox:{background:BG_CARD,borderRadius:"12px",padding:"12px",textAlign:"center"},
   tabRow:{display:"flex",gap:"8px",padding:"0 16px 12px"},
-  tab:(a)=>({flex:1,padding:"9px",borderRadius:"10px",border:"none",fontSize:"13px",fontWeight:a?"700":"400",cursor:"pointer",background:a?SHOPEE_RED:"rgba(255,255,255,0.06)",color:a?"#fff":TEXT_MUTED}),
+  tab:(a)=>({flex:1,padding:"9px",borderRadius:"10px",border:"none",fontSize:"13px",background:a?SHOPEE_RED:"rgba(255,255,255,0.06)",color:"#fff",cursor:"pointer"}),
   body:{padding:"0 16px 24px"},
   card:{background:BG_CARD,borderRadius:"16px",padding:"18px",border:"1px solid rgba(255,255,255,0.07)"},
   cardT:{fontSize:"14px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"14px"},
   label:{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"5px"},
   input:{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"12px"},
-  typeBox:(a)=>({background:a?"rgba(238,77,45,0.15)":"rgba(255,255,255,0.04)",border:a?`2px solid ${SHOPEE_RED}`:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"10px 8px",textAlign:"center",cursor:"pointer",color:TEXT_MAIN}),
-  btnP:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"14px",fontWeight:"700",cursor:"pointer",marginTop:"4px"},
+  typeBox:(a)=>({background:a?"rgba(238,77,45,0.15)":"rgba(255,255,255,0.04)",border:a?`2px solid ${SHOPEE_RED}`:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"10px 8px",textAlign:"center",cursor:"pointer"}),
+  btnP:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"14px",fontWeight:"700",cursor:"pointer"},
 };
 
-// ─── MAIN APP ────────────────────────────────────────────────
+// ─── MAIN APP ───────────────────────────────────────────────
 function MainApp({ sess, onLogout }) {
   const { key: licKey, info: keyInfo } = sess;
-  const [page, setPage] = useState("content"); // content | video | queue
+  const [page, setPage] = useState("content"); 
+  const [platform, setPlatform] = useState("shopee"); 
   const [product, setProduct] = useState("");
   const [price, setPrice] = useState("");
   const [disc, setDisc] = useState("");
@@ -418,14 +412,32 @@ function MainApp({ sess, onLogout }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [scriptLoading, setScriptLoading] = useState(false);
   const [copied, setCopied] = useState("");
+
+  // สถานะควบคุมบอทหลัก (Bot Master Control)
+  const [isBotRunning, setIsBotRunning] = useState(false);
+  const [botStatus, setBotStatus] = useState("Idle"); // 'Idle', 'Running', 'Stopping'
+
   const expired = isExpired(keyInfo||{});
   const dl = daysLeft(keyInfo?.expiresAt);
+
+  const handleToggleBot = () => {
+    if (isBotRunning) {
+      setBotStatus("Stopping");
+      setTimeout(() => {
+        setIsBotRunning(false);
+        setBotStatus("Idle");
+      }, 1500);
+    } else {
+      setIsBotRunning(true);
+      setBotStatus("Running");
+    }
+  };
 
   const genTemplate = () => {
     const t = TEMPLATES.find(x=>x.id===tmpl);
     if (!t||!product||!price) return;
     const h = hook||HOOKS[Math.floor(Math.random()*HOOKS.length)];
-    setCaptionTmpl(`${h}\n\n${t.fn(product,price,disc)}`);
+    setCaptionTmpl(`${h}\n\n${t.fn(product,price,disc,platform)}`);
   };
 
   const callAI = async (prompt, setFn, setLoad) => {
@@ -433,7 +445,7 @@ function MainApp({ sess, onLogout }) {
     try {
       const apiKey = localStorage.getItem("anthropic_api_key") || "";
       if (!apiKey) {
-        setFn("⚠️ ยังไม่ได้ตั้งค่า Anthropic API Key — กดปุ่ม '⚙️ ตั้งค่า AI' ด้านบนเพื่อกรอก API Key ก่อนใช้งานฟีเจอร์ AI");
+        setFn("⚠️ ยังไม่ได้ตั้งค่า Anthropic API Key — กดปุ่ม '⚙️ ตั้งค่า บอท/AI' เพื่อกรอก API Key");
         setLoad(false);
         return;
       }
@@ -448,181 +460,216 @@ function MainApp({ sess, onLogout }) {
         body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:prompt}]})
       });
       const d = await r.json();
-      if (d.error) { setFn(`⚠️ เกิดข้อผิดพลาด: ${d.error.message || "ไม่สามารถเรียก AI ได้"}`); setLoad(false); return; }
+      if (d.error) { setFn(`⚠️ เกิดข้อผิดพลาด: ${d.error.message}`); setLoad(false); return; }
       setFn(d.content?.map(c=>c.text||"").join("")||"เกิดข้อผิดพลาด ลองใหม่");
     } catch { setFn("เกิดข้อผิดพลาด ลองใหม่"); }
     setLoad(false);
   };
 
   const genAI = () => callAI(
-    `คุณเป็น Social Media Copywriter เชี่ยวชาญขายของ Shopee\nสร้างแคปชั่นปักตะกร้าสำหรับ:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}${link?`- ลิงก์: ${link}\n`:""}\nให้: Hook ดึงดูด, ภาษาไทย trendy, Emoji พอดี, CTA ชัด, Hashtag 5-8 อัน\nตอบด้วยแคปชั่นเท่านั้น`,
+    `คุณเป็น Social Media Copywriter เชี่ยวชาญขายของออนไลน์ผ่านระบบแอฟฟิลิเอต บนแพลตฟอร์ม ${platform.toUpperCase()}\nสร้างแคปชั่นปักตะกร้าสำหรับ:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}${link?`- ลิงก์พิกัด: ${link}\n`:""}\nให้มี: คำเปิดตัวดึงดูด (Hook), ภาษาไทยฮิตๆ วัยรุ่นชอบ, Emoji น่ารักพอดี, วิธีสั่งซื้อที่เหมาะกับ ${platform} (เช่น ตะกร้าเหลือง หรือ ลิงก์หน้าโปรไฟล์), แฮชแท็ก 5-8 อันที่เข้ากับค่ายนี้\nตอบด้วยข้อความแคปชั่นเท่านั้นไม่ต้องอธิบายเพิ่ม`,
     setCaptionAi, setAiLoading
   );
   const genScript = () => callAI(
-    `สร้างสคริปต์คลิปสั้น TikTok/Reels ปักตะกร้า Shopee:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}\nรูปแบบ:\n[0-3 วิ] HOOK: ...\n[3-10 วิ] นำเสนอสินค้า: ...\n[10-20 วิ] จุดเด่น: ...\n[20-30 วิ] ราคา+CTA: ...\n[Caption]: ...\nภาษาไทย TikTok style`,
+    `สร้างสคริปต์คลิปสั้นสำหรับรันบนแพลตฟอร์ม ${platform.toUpperCase()} ปักตะกร้าแอฟฟิลิเอต:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}\nรูปแบบสคริปต์ความยาว 15-30 วินาที:\n[0-3 วิ] HOOK ดึงสายตา: ...\n[3-10 วิ] รีวิวสินค้าเด่นๆ: ...\n[10-20 วิ] จุดว้าวที่ต้องซื้อ: ...\n[20-30 วิ] ปิดการขาย + บอกพิกัดของ ${platform} (เช่น ตะกร้าเหลืองมุมซ้ายล่าง หรือลิงก์หน้าช่อง):\nใช้ภาษาไทยสไตล์อินฟลูเอนเซอร์ชื่อดัง สนุก กระชับ เร้าอารมณ์`,
     setScript, setScriptLoading
   );
 
   const copy = (text,id) => { navigator.clipboard.writeText(text); setCopied(id); setTimeout(()=>setCopied(""),2000); };
 
-  const [showAiSettings, setShowAiSettings] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem("anthropic_api_key") || "");
-  const saveApiKey = () => { localStorage.setItem("anthropic_api_key", apiKeyInput.trim()); setShowAiSettings(false); };
-
   const M = MS;
+  const headerBg = platform === "shopee" ? `linear-gradient(135deg, ${SHOPEE_RED}, #8B0000)` : `linear-gradient(135deg, ${TIKTOK_BLACK}, #333)`;
+
+  // ลอจิกเลือกหน้า RenderContent (เงื่อนไข Switch)
+  const renderContent = () => {
+    switch (page) {
+      case "content":
+        return (
+          <>
+            <div style={M.card}>
+              <div style={M.cardT}>📦 ข้อมูลสินค้าที่ต้องการขาย</div>
+              <label style={M.label}>ชื่อสินค้า *</label>
+              <input style={M.input} placeholder="เช่น กระเป๋าผ้า Canvas ลายการ์ตูน" value={product} onChange={e=>setProduct(e.target.value)} />
+              <div style={{display:"flex",gap:"10px"}}>
+                <div style={{flex:1}}><label style={M.label}>ราคา (บาท) *</label><input style={M.input} type="number" placeholder="299" value={price} onChange={e=>setPrice(e.target.value)} /></div>
+                <div style={{flex:1}}><label style={M.label}>ลด (%)</label><input style={M.input} type="number" placeholder="20" value={disc} onChange={e=>setDisc(e.target.value)} /></div>
+              </div>
+              <label style={M.label}>ลิงก์สินค้า ({platform === "shopee" ? "Shopee" : "TikTok Shop"})</label>
+              <input style={{...M.input,marginBottom:0}} placeholder="วางลิงก์ปักหมุดที่นี่..." value={link} onChange={e=>setLink(e.target.value)} />
+            </div>
+
+            <div style={M.card}>
+              <div style={M.cardT}>✍️ สร้างแคปชั่นขายของ</div>
+              <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+                <button style={M.tab(activeTab==="template")} onClick={()=>setActiveTab("template")}>📋 ใช้เทมเพลต</button>
+                <button style={M.tab(activeTab==="ai")} onClick={()=>setActiveTab("ai")}>🤖 ส่งให้ AI แต่ง</button>
+              </div>
+              {activeTab==="template"&&(
+                <>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"12px"}}>
+                    {TEMPLATES.map(t=>(
+                      <button key={t.id} style={M.tmplBtn(tmpl===t.id)} onClick={()=>setTmpl(t.id)}>{t.name}</button>
+                    ))}
+                  </div>
+                  <label style={M.label}>เลือกคำขึ้นต้น (Hook)</label>
+                  <div style={{marginBottom:"8px"}}>
+                    {HOOKS.slice(0,4).map(h=>(
+                      <span key={h} style={M.chip} onClick={()=>setHook(h)}>{h}</span>
+                    ))}
+                  </div>
+                  <input style={M.input} placeholder="หรือพิมพ์ hook เอง..." value={hook} onChange={e=>setHook(e.target.value)} />
+                  <button style={M.btnP} onClick={genTemplate} disabled={expired}>✨ สั่งเจเนอเรตแคปชั่น</button>
+                  {captionTmpl&&<ResultBox text={captionTmpl} id="tmpl" copied={copied} onCopy={copy}/>}
+                </>
+              )}
+              {activeTab==="ai"&&(
+                <>
+                  <button style={{...M.btnP,opacity:aiLoading?0.7:1}} onClick={genAI} disabled={aiLoading||expired}>
+                    {aiLoading?"⏳ บอท AI กำลังเขียนให้...":"🤖 กดปุ่มให้ AI เจนแคปชั่นพิเศษ"}
+                  </button>
+                  {captionAi&&<ResultBox text={captionAi} id="ai" copied={copied} onCopy={copy}/>}
+                </>
+              )}
+            </div>
+
+            <div style={M.card}>
+              <div style={M.cardT}>🎬 สคริปต์พูดในคลิปสั้น (AI)</div>
+              <button style={{...M.btnS,opacity:scriptLoading?0.7:1}} onClick={genScript} disabled={scriptLoading||expired}>
+                {scriptLoading?"⏳ AI กำลังเรียบเรียงสคริปต์เสียง...":"🎬 สร้างสคริปต์สั้น 15-30 วิ"}
+              </button>
+              {script&&(
+                <div style={{marginTop:"12px"}}>
+                  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"6px"}}>
+                    <button style={{background:"rgba(255,255,255,0.08)",border:"none",color:TEXT_MUTED,borderRadius:"8px",padding:"6px 14px",fontSize:"12px",cursor:"pointer"} } onClick={()=>copy(script,"scr")}>
+                      {copied==="scr"?"✓ คัดลอกแล้ว":"📋 คัดลอกสคริปต์"}
+                    </button>
+                  </div>
+                  <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"12px",lineHeight:"1.8",whiteSpace:"pre-wrap",color:TEXT_MAIN,border:"1px solid rgba(255,255,255,0.07)",maxHeight:"280px",overflowY:"auto"}}>{script}</div>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      case "video":
+        return <VideoGenerator M={M} expired={expired} product={product} price={price} disc={disc} captionForVideo={captionTmpl || captionAi} platform={platform} />;
+      case "queue":
+        return <VideoQueueManager M={M} licKey={licKey} expired={expired} product={product} price={price} link={link} captionTmpl={captionTmpl} captionAi={captionAi} script={script} platform={platform} />;
+      case "settings":
+        return <SettingsComponent M={M} BG_CARD={BG_CARD} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div style={M.app}>
-      <div style={M.hdr}>
+      {/* ─── 1. ปุ่มควบคุมบอทหลัก (Bot Master Control) ใน Header ─── */}
+      <div style={{...M.hdr, background: headerBg}}>
         <div style={M.glow}/>
-        <div style={{position:"relative",zIndex:1}}>
-          <div style={M.logo}>🛒 Shopee<span style={{color:SHOPEE_ORANGE}}>Clip</span>AI</div>
-          <div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)",marginBottom:"8px"}}>สร้างคลิปปักตะกร้า + แคปชั่น อัตโนมัติ</div>
-          <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+        <div style={{position:"relative", zIndex:1, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"12px"}}>
+          <div>
+            <div style={M.logo}>🚀 ClipAI<span style={{color: platform === "shopee" ? SHOPEE_ORANGE : TIKTOK_CYAN}}>{platform === "shopee" ? "Shopee" : "TikTok"}</span></div>
+            <div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)"}}>ระบบสร้างคลิปปักตะกร้า + แคปชั่นอัจฉริยะ</div>
+          </div>
+
+          {/* 🟢 ส่วนแสดงผลปุ่มเปิด-ปิดบอท มุมบนขวาของระบบ */}
+          <div style={{display:"flex", alignItems:"center", gap:"10px"}}>
+            <div style={{textAlign: "right", color: TEXT_MAIN}} className="hidden sm:block">
+              <div style={{fontSize: "10px", color: TEXT_MUTED}}>Bot Master Status</div>
+              <div style={{fontSize: "13px", fontWeight: "bold", color: botStatus === "Running" ? "#27AE60" : botStatus === "Stopping" ? "#F5A623" : "#FF6B6B"}}>{botStatus}</div>
+            </div>
+            
+            <button
+              onClick={handleToggleBot}
+              disabled={botStatus === "Stopping"}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s",
+                background: isBotRunning ? "#E74C3C" : "#27AE60", color: "#fff", opacity: botStatus === "Stopping" ? 0.6 : 1
+              }}
+            >
+              {botStatus === "Stopping" ? (
+                <>
+                  <RefreshCw style={{width:"14px", height:"14px", animation: "spin 1s linear infinite"}} />
+                  กำลังหยุด...
+                </>
+              ) : isBotRunning ? (
+                <>
+                  <Square style={{width:"14px", height:"14px"}} />
+                  ปิดบอทระบบ
+                </>
+              ) : (
+                <>
+                  <Play style={{width:"14px", height:"14px"}} />
+                  เปิดบอทระบบ
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        
+        {/* แถบแพลตฟอร์ม & รายละเอียดสิทธิ์ */}
+        <div style={{position:"relative", zIndex:1, marginTop:"12px", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:"8px"}}>
+          <div style={{display:"flex", gap:"6px"}}>
             <span style={M.badge()}>{licKey}</span>
-            <span style={M.badge(expired?"#e74c3c":dl!==null&&dl<=7?SHOPEE_ORANGE:GREEN)}>
+            <span style={M.badge(expired?"#e74c3c":GREEN)}>
               {expired?"❌ หมดอายุ":keyInfo?.type==="lifetime"?"♾️ ตลอดชีพ":`⏰ เหลือ ${dl} วัน`}
             </span>
-            <span style={{...M.badge(),cursor:"pointer"}} onClick={()=>setShowAiSettings(true)}>⚙️ ตั้งค่า AI</span>
-            <span style={{...M.badge(),cursor:"pointer"}} onClick={onLogout}>ออก</span>
+            <span style={{...M.badge(),cursor:"pointer"}} onClick={onLogout}>ออกจากระบบ</span>
+          </div>
+
+          {/* ปุ่มสลับระบบ Shopee และ TikTok */}
+          <div style={{display:"flex", background:"rgba(0,0,0,0.4)", padding:"4px", borderRadius:"12px", border:"1px solid rgba(255,255,255,0.1)"}}>
+            <button onClick={() => { setPlatform("shopee"); setCaptionTmpl(""); setCaptionAi(""); setScript(""); }} 
+              style={{padding:"6px 14px", borderRadius:"8px", border:"none", fontSize:"12px", fontWeight:"bold", cursor:"pointer", background: platform === "shopee" ? SHOPEE_RED : "transparent", color: "#fff"}}>
+              🧡 Shopee
+            </button>
+            <button onClick={() => { setPlatform("tiktok"); setPlatform("tiktok"); setCaptionTmpl(""); setCaptionAi(""); setScript(""); }} 
+              style={{padding:"6px 14px", borderRadius:"8px", border:"none", fontSize:"12px", fontWeight:"bold", cursor:"pointer", background: platform === "tiktok" ? "#fff" : "transparent", color: platform === "tiktok" ? "#000" : "#fff"}}>
+              🖤 TikTok
+            </button>
           </div>
         </div>
       </div>
 
-      {showAiSettings && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50,padding:"20px"}} onClick={()=>setShowAiSettings(false)}>
-          <div style={{...M.card,maxWidth:"360px",width:"100%"}} onClick={e=>e.stopPropagation()}>
-            <div style={M.cardT}>⚙️ ตั้งค่า Anthropic API Key</div>
-            <p style={{fontSize:"12px",color:TEXT_MUTED,marginTop:0}}>
-              ใช้สำหรับฟีเจอร์ "AI สร้างแคปชั่น" และ "สร้างสคริปต์คลิป" — รับ API Key ได้ที่ console.anthropic.com (เก็บไว้ในเครื่องนี้เท่านั้น ไม่ส่งไปที่อื่น)
-            </p>
-            <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} />
-            <button style={M.btnP} onClick={saveApiKey}>💾 บันทึก</button>
-          </div>
+      <div style={{margin:"14px auto 0", maxWidth:"600px", padding:"0 14px"}}>
+        <div style={{background: platform === "shopee" ? "rgba(238,77,45,0.1)" : "rgba(255,255,255,0.05)", border: `1px solid ${platform === "shopee" ? SHOPEE_ORANGE : '#fff'}30`, padding:"10px", borderRadius:"10px", fontSize:"12px", textAlign:"center"}}>
+          {platform === "shopee" ? "🧡 ระบบทำงานในโหมด Shopee Affiliate" : "🖤 ระบบทำงานในโหมด TikTok Affiliate"}
         </div>
-      )}
-
-      {expired&&<div style={{background:"rgba(231,76,60,0.15)",border:"1px solid #e74c3c50",margin:"12px 16px",borderRadius:"10px",padding:"10px 14px",fontSize:"13px",color:"#FF6B6B"}}>⚠️ Key หมดอายุ กรุณาติดต่อผู้ขายเพื่อต่ออายุ</div>}
-
-      <div style={{display:"flex",gap:"8px",padding:"14px 14px 0",maxWidth:"600px",margin:"0 auto"}}>
-        {[["content","✍️ แคปชั่น/สคริปต์"],["video","🎬 สร้างคลิป"],["queue","📅 คิวโพส"]].map(([id,lb])=>(
-          <button key={id} style={M.tab(page===id)} onClick={()=>setPage(id)}>{lb}</button>
-        ))}
       </div>
 
-      {page==="content" && (
+      {/* เมนูนำทางหลักหลัก */}
+      <div style={{display:"flex", gap:"6px", padding:"14px 14px 0", maxWidth:"600px", margin:"0 auto", flexWrap:"wrap"}}>
+        <button style={M.tab(page==="content")} onClick={()=>setPage("content")}><FileText size={14} style={{marginRight:4}}/>เขียนโพสต์</button>
+        <button style={M.tab(page==="video")} onClick={()=>setPage("video")}>🎬 สร้างคลิป</button>
+        <button style={M.tab(page==="queue")} onClick={()=>setPage("queue")}><ListOrdered size={14} style={{marginRight:4}}/>คิวงาน & บอท</button>
+        <button style={M.tab(page==="settings")} onClick={()=>setPage("settings")}><Settings size={14} style={{marginRight:4}}/>ตั้งค่าระบบ</button>
+      </div>
+
+      {/* เรียกใช้งาน Component ฟังก์ชันตามเงื่อนไขสวิตช์หน้าจอ */}
       <div style={M.body}>
-        {/* สินค้า */}
-        <div style={M.card}>
-          <div style={M.cardT}>📦 ข้อมูลสินค้า</div>
-          <label style={M.label}>ชื่อสินค้า *</label>
-          <input style={M.input} placeholder="เช่น กระเป๋าผ้า Canvas ลายการ์ตูน" value={product} onChange={e=>setProduct(e.target.value)} />
-          <div style={{display:"flex",gap:"10px"}}>
-            <div style={{flex:1}}><label style={M.label}>ราคา (บาท) *</label><input style={M.input} type="number" placeholder="299" value={price} onChange={e=>setPrice(e.target.value)} /></div>
-            <div style={{flex:1}}><label style={M.label}>ลด (%)</label><input style={M.input} type="number" placeholder="20" value={disc} onChange={e=>setDisc(e.target.value)} /></div>
-          </div>
-          <label style={M.label}>ลิงก์ Shopee</label>
-          <input style={{...M.input,marginBottom:0}} placeholder="https://shopee.co.th/..." value={link} onChange={e=>setLink(e.target.value)} />
-        </div>
-
-        {/* แคปชั่น */}
-        <div style={M.card}>
-          <div style={M.cardT}>✍️ สร้างแคปชั่นโพส</div>
-          <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-            <button style={M.tab(activeTab==="template")} onClick={()=>setActiveTab("template")}>📋 เทมเพลต</button>
-            <button style={M.tab(activeTab==="ai")} onClick={()=>setActiveTab("ai")}>🤖 AI สร้างเอง</button>
-          </div>
-          {activeTab==="template"&&(
-            <>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"12px"}}>
-                {TEMPLATES.map(t=>(
-                  <button key={t.id} style={M.tmplBtn(tmpl===t.id)} onClick={()=>setTmpl(t.id)}>{t.name}</button>
-                ))}
-              </div>
-              <label style={M.label}>Hook เปิดตัว</label>
-              <div style={{marginBottom:"8px"}}>
-                {HOOKS.slice(0,4).map(h=>(
-                  <span key={h} style={M.chip} onClick={()=>setHook(h)}>{h}</span>
-                ))}
-              </div>
-              <input style={M.input} placeholder="หรือพิมพ์ hook เอง..." value={hook} onChange={e=>setHook(e.target.value)} />
-              <button style={M.btnP} onClick={genTemplate} disabled={expired}>✨ สร้างแคปชั่น</button>
-              {captionTmpl&&<ResultBox text={captionTmpl} id="tmpl" copied={copied} onCopy={copy}/>}
-            </>
-          )}
-          {activeTab==="ai"&&(
-            <>
-              <p style={{fontSize:"13px",color:TEXT_MUTED,margin:"0 0 12px"}}>AI สร้างแคปชั่นปรับแต่งพิเศษจากสินค้าของคุณ</p>
-              <button style={{...M.btnP,opacity:aiLoading?0.7:1}} onClick={genAI} disabled={aiLoading||expired}>
-                {aiLoading?"⏳ AI กำลังสร้าง...":"🤖 ให้ AI สร้างแคปชั่น"}
-              </button>
-              {captionAi&&<ResultBox text={captionAi} id="ai" copied={copied} onCopy={copy}/>}
-            </>
-          )}
-        </div>
-
-        {/* สคริปต์ */}
-        <div style={M.card}>
-          <div style={M.cardT}>🎬 สคริปต์คลิปสั้น (AI)</div>
-          <p style={{fontSize:"13px",color:TEXT_MUTED,margin:"0 0 12px"}}>AI เขียนสคริปต์แบบจังหวะ พร้อมบทพูด สำหรับถ่ายคลิป TikTok/Reels</p>
-          <button style={{...M.btnS,opacity:scriptLoading?0.7:1}} onClick={genScript} disabled={scriptLoading||expired}>
-            {scriptLoading?"⏳ AI กำลังเขียนสคริปต์...":"🎬 สร้างสคริปต์คลิป"}
-          </button>
-          {script&&(
-            <div style={{marginTop:"12px"}}>
-              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"6px"}}>
-                <button style={{background:"rgba(255,255,255,0.08)",border:"none",color:TEXT_MUTED,borderRadius:"8px",padding:"6px 14px",fontSize:"12px",cursor:"pointer"}} onClick={()=>copy(script,"scr")}>
-                  {copied==="scr"?"✓ คัดลอกแล้ว":"📋 คัดลอกสคริปต์"}
-                </button>
-              </div>
-              <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"12px",lineHeight:"1.8",whiteSpace:"pre-wrap",color:TEXT_MAIN,border:"1px solid rgba(255,255,255,0.07)",maxHeight:"280px",overflowY:"auto"}}>{script}</div>
-            </div>
-          )}
-        </div>
-
-        {/* Key info */}
-        <div style={{...M.card,border:"1px solid rgba(245,166,35,0.15)"}}>
-          <div style={M.cardT}>🔑 ข้อมูล License</div>
-          <div style={{fontSize:"13px",color:TEXT_MUTED,lineHeight:"2"}}>
-            <div>Key: <span style={{color:TEXT_MAIN,fontFamily:"monospace"}}>{licKey}</span></div>
-            <div>ประเภท: <span style={{color:SHOPEE_ORANGE}}>{keyInfo?.type==="monthly"?"รายเดือน":keyInfo?.type==="yearly"?"รายปี":"ตลอดชีพ"}</span></div>
-            <div>หมดอายุ: <span style={{color:expired?"#e74c3c":GREEN}}>{fmtDate(keyInfo?.expiresAt)}</span></div>
-          </div>
-        </div>
+        {renderContent()}
       </div>
-      )}
-
-      {page==="video" && (
-        <VideoGenerator M={M} expired={expired} product={product} price={price} disc={disc}
-          captionForVideo={captionTmpl || captionAi} />
-      )}
-
-      {page==="queue" && (
-        <PostQueue M={M} licKey={licKey} expired={expired}
-          product={product} price={price} link={link}
-          captionTmpl={captionTmpl} captionAi={captionAi} script={script} />
-      )}
     </div>
   );
 }
 
-// ─── VIDEO GENERATOR ─────────────────────────────────────────
-function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
-  const [mode, setMode] = useState("generate"); // generate | upload
-  const [images, setImages] = useState([]); // {url, name}
+// ─── VIDEO GENERATOR ────────────────────────────────────────
+function VideoGenerator({ M, expired, product, price, disc, captionForVideo, platform }) {
+  const [mode, setMode] = useState("generate"); 
+  const [images, setImages] = useState([]); 
   const [secPerImg, setSecPerImg] = useState(2.5);
   const [overlayText, setOverlayText] = useState("");
   const [isRendering, setIsRendering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoBlob, setVideoBlob] = useState(null);
-  const [videoFileName, setVideoFileName] = useState("shopee-clip.webm");
+  const [videoFileName, setVideoFileName] = useState("clip-output.webm");
   const [shareMsg, setShareMsg] = useState("");
   const canvasRef = useRef(null);
   const videoFileInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    // default overlay = price/discount text
     if (!overlayText && product) {
       setOverlayText(`${product}${price ? ` | ${price} บาท` : ""}${disc ? ` ลด ${disc}%` : ""}`);
     }
@@ -634,14 +681,6 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
     setImages(prev => [...prev, ...newImgs].slice(0, 10));
   };
   const removeImage = (idx) => setImages(prev => prev.filter((_,i)=>i!==idx));
-  const moveImage = (idx, dir) => {
-    setImages(prev => {
-      const arr=[...prev]; const j=idx+dir;
-      if (j<0||j>=arr.length) return arr;
-      [arr[idx],arr[j]]=[arr[j],arr[idx]];
-      return arr;
-    });
-  };
 
   const renderVideo = async () => {
     if (images.length === 0) return;
@@ -652,7 +691,6 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext("2d");
 
-    // preload images
     const loaded = await Promise.all(images.map(img => new Promise(res => {
       const el = new Image();
       el.onload = () => res(el);
@@ -671,7 +709,6 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
 
     const totalDuration = secPerImg * loaded.length * 1000;
     const startTime = performance.now();
-    const fps = 30;
 
     await new Promise(resolveAll => {
       function frame() {
@@ -684,7 +721,6 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
         ctx.fillRect(0,0,W,H);
 
         if (img) {
-          // Ken Burns zoom effect: scale 1.0 -> 1.12
           const scale = 1 + 0.12 * localT;
           const iw = img.width, ih = img.height;
           const targetRatio = W/H, imgRatio = iw/ih;
@@ -695,37 +731,30 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
           ctx.drawImage(img, dx, dy, drawW, drawH);
         }
 
-        // gradient overlay bottom
         const grad = ctx.createLinearGradient(0,H*0.6,0,H);
         grad.addColorStop(0,"rgba(0,0,0,0)");
-        grad.addColorStop(1,"rgba(0,0,0,0.75)");
+        grad.addColorStop(1,"rgba(0,0,0,0.8)");
         ctx.fillStyle = grad;
         ctx.fillRect(0,H*0.6,W,H*0.4);
 
-        // overlay text
         if (overlayText) {
           ctx.fillStyle = "#fff";
           ctx.font = "bold 42px 'Segoe UI', sans-serif";
           ctx.textAlign = "center";
-          wrapText(ctx, overlayText, W/2, H-160, W-80, 52);
+          wrapText(ctx, overlayText, W/2, H-180, W-80, 52);
         }
-        // price badge
         if (price) {
-          ctx.fillStyle = SHOPEE_RED;
-          ctx.fillRect(W/2-130, H-90, 260, 60);
+          ctx.fillStyle = platform === "shopee" ? SHOPEE_RED : "#FF0050";
+          ctx.fillRect(W/2-140, H-100, 280, 64);
           ctx.fillStyle = "#fff";
           ctx.font = "bold 36px 'Segoe UI', sans-serif";
           ctx.textAlign = "center";
-          ctx.fillText(`${price} บาท${disc?` (-${disc}%)`:""}`, W/2, H-50);
+          ctx.fillText(`${price} บาท${disc?` (-${disc}%)`:""}`, W/2, H-56);
         }
 
         setProgress(Math.min(100, Math.round((elapsed/totalDuration)*100)));
-
-        if (elapsed < totalDuration) {
-          requestAnimationFrame(frame);
-        } else {
-          resolveAll();
-        }
+        if (elapsed < totalDuration) requestAnimationFrame(frame);
+        else resolveAll();
       }
       requestAnimationFrame(frame);
     });
@@ -734,10 +763,8 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
     await stopped;
     const blob = new Blob(chunks, { type: mime });
     setVideoBlob(blob);
-    setVideoFileName("shopee-clip.webm");
     setVideoUrl(URL.createObjectURL(blob));
     setIsRendering(false);
-    setProgress(100);
   };
 
   const handleVideoFile = (e) => {
@@ -746,307 +773,332 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo }) {
     setVideoBlob(file);
     setVideoFileName(file.name);
     setVideoUrl(URL.createObjectURL(file));
-    setShareMsg("");
   };
 
   const shareVideo = async () => {
-    setShareMsg("");
     if (!videoBlob) return;
-    const captionText = captionForVideo || `${product} ราคา ${price} บาท${disc?` ลด ${disc}%`:""}`;
+    const captionText = captionForVideo || `${product} ราคา ${price} บาท`;
     try {
-      const file = new File([videoBlob], videoFileName, { type: videoBlob.type || "video/webm" });
+      const file = new File([videoBlob], videoFileName, { type: videoBlob.type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: product || "Shopee Clip",
-          text: captionText,
-        });
-        setShareMsg("✅ เปิดหน้าแชร์แล้ว เลือกแอปที่ต้องการโพสได้เลย");
-      } else if (navigator.share) {
-        // fallback: share text + link only (some browsers can't share files)
-        await navigator.share({ title: product || "Shopee Clip", text: captionText });
-        setShareMsg("⚠️ อุปกรณ์นี้แชร์ไฟล์วิดีโอไม่ได้ ได้แชร์เฉพาะแคปชั่น กรุณาดาวน์โหลดวิดีโอแล้วแนบเองในแอป");
+        await navigator.share({ files: [file], title: "ClipAI Post", text: captionText });
+        setShareMsg("✅ เรียกหน้ารายการโพสต์สำเร็จ");
       } else {
-        setShareMsg("⚠️ เบราว์เซอร์นี้ไม่รองรับการแชร์ กรุณาดาวน์โหลดวิดีโอแล้วเปิดแอปเพื่ออัปโหลดเอง");
+        setShareMsg("⚠️ อุปกรณ์ไม่รองรับการแชร์ไฟล์อัตโนมัติ ให้ดาวน์โหลดลงเครื่องแล้วไปอัปโหลดเองครับ");
       }
-    } catch (err) {
-      if (err?.name !== "AbortError") setShareMsg("⚠️ ไม่สามารถเปิดหน้าแชร์ได้ กรุณาดาวน์โหลดวิดีโอแล้วอัปโหลดเอง");
-    }
+    } catch { setShareMsg("⚠️ เกิดข้อผิดพลาดในการส่งไฟล์"); }
   };
 
   function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    const words = text.split(" ");
-    let line = "";
-    const lines = [];
+    const words = text.split(" "); let line = ""; const lines = [];
     for (const w of words) {
       const test = line + w + " ";
       if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = w + " "; }
       else line = test;
     }
     lines.push(line);
-    const startY = y - (lines.length-1)*lineHeight;
-    lines.forEach((l,i) => ctx.fillText(l.trim(), x, startY + i*lineHeight));
+    lines.forEach((l,i) => ctx.fillText(l.trim(), x, y + i*lineHeight));
   }
 
   return (
-    <div style={M.body}>
+    <div>
       <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-        <button style={M.tab(mode==="generate")} onClick={()=>setMode("generate")}>🖼️ สร้างคลิปจากรูป</button>
-        <button style={M.tab(mode==="upload")} onClick={()=>setMode("upload")}>📁 อัปโหลดคลิปที่มี</button>
+        <button style={M.tab(mode==="generate")} onClick={()=>setMode("generate")}>🖼️ ทำคลิปจากรูป</button>
+        <button style={M.tab(mode==="upload")} onClick={()=>setMode("upload")}>📁 ดึงคลิปจากเครื่อง</button>
       </div>
 
       {mode==="generate" && (
       <div style={M.card}>
-        <div style={M.cardT}>🎬 สร้างคลิปวิดีโอจากรูปสินค้า</div>
-        <p style={{fontSize:"13px",color:TEXT_MUTED,margin:"0 0 12px"}}>
-          อัปโหลดรูปสินค้า (สูงสุด 10 รูป) ระบบจะตัดต่อเป็นวิดีโอแนวตั้ง 720x1280 พร้อม Ken Burns zoom + ข้อความซ้อนทับ แล้วดาวน์โหลดเป็น .webm ได้ทันที
-        </p>
+        <div style={M.cardT}>🎬 ผลิตคลิปวิดีโอออโต้</div>
         <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={handleFiles} />
-        <button style={M.btnS} onClick={()=>fileInputRef.current?.click()} disabled={expired}>📷 เลือกรูปสินค้า</button>
+        <button style={M.btnS} onClick={()=>fileInputRef.current?.click()} disabled={expired}>📷 อัปโหลดรูปสินค้า (สูงสุด 10 รูป)</button>
 
         {images.length>0 && (
           <div style={{display:"flex",flexWrap:"wrap",gap:"8px",marginTop:"12px"}}>
             {images.map((img,i)=>(
-              <div key={i} style={{position:"relative",width:"70px",height:"100px",borderRadius:"8px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)"}}>
-                <img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                <div style={{position:"absolute",top:0,right:0,display:"flex"}}>
-                  <button style={{background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",fontSize:"10px",padding:"2px 5px",cursor:"pointer"}} onClick={()=>removeImage(i)}>✕</button>
-                </div>
-                <div style={{position:"absolute",bottom:0,left:0,right:0,display:"flex",justifyContent:"space-between"}}>
-                  <button style={{background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",fontSize:"10px",padding:"2px 5px",cursor:"pointer",flex:1}} onClick={()=>moveImage(i,-1)}>◀</button>
-                  <button style={{background:"rgba(0,0,0,0.6)",color:"#fff",border:"none",fontSize:"10px",padding:"2px 5px",cursor:"pointer",flex:1}} onClick={()=>moveImage(i,1)}>▶</button>
-                </div>
+              <div key={i} style={{position:"relative",width:"60px",height:"85px",borderRadius:"6px",overflow:"hidden"}}>
+                <img src={img.url} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                <button style={{position:"absolute",top:0,right:0,background:"#000",color:"#fff",border:"none"} } onClick={()=>removeImage(i)}>✕</button>
               </div>
             ))}
           </div>
         )}
 
         <div style={{marginTop:"14px"}}>
-          <label style={M.label}>เวลาต่อรูป (วินาที)</label>
-          <input style={M.input} type="number" min="1" max="6" step="0.5" value={secPerImg} onChange={e=>setSecPerImg(Number(e.target.value)||2.5)} />
-          <label style={M.label}>ข้อความซ้อนทับ (Overlay Text)</label>
-          <input style={{...M.input,marginBottom:0}} placeholder="เช่น ชื่อสินค้า / จุดเด่น" value={overlayText} onChange={e=>setOverlayText(e.target.value)} />
+          <label style={M.label}>ความเร็วขยับภาพ (วินาที / รูป)</label>
+          <input style={M.input} type="number" value={secPerImg} onChange={e=>setSecPerImg(Number(e.target.value))} />
+          <label style={M.label}>ตัวอักษรวิ่งพาดหัววิดีโอ</label>
+          <input style={M.input} value={overlayText} onChange={e=>setOverlayText(e.target.value)} />
         </div>
 
-        <button style={{...M.btnP,marginTop:"14px",opacity:isRendering?0.7:1}} onClick={renderVideo} disabled={isRendering||images.length===0||expired}>
-          {isRendering ? `⏳ กำลังตัดต่อ... ${progress}%` : "🎬 สร้างวิดีโอ"}
+        <button style={{...M.btnP,opacity:isRendering?0.7:1}} onClick={renderVideo} disabled={isRendering||images.length===0}>
+          {isRendering ? `⏳ ระบบกำลังจัดคิวเรนเดอร์... ${progress}%` : "🎬 กดเริ่มเรนเดอร์คลิป"}
         </button>
-
         <canvas ref={canvasRef} style={{display:"none"}} />
       </div>
       )}
 
       {mode==="upload" && (
         <div style={M.card}>
-          <div style={M.cardT}>📁 อัปโหลดคลิปวิดีโอที่มีอยู่แล้ว</div>
-          <p style={{fontSize:"13px",color:TEXT_MUTED,margin:"0 0 12px"}}>
-            เลือกไฟล์วิดีโอจากเครื่อง/มือถือ (รองรับ .mp4, .mov, .webm) ระบบจะเตรียมแคปชั่นให้พร้อม แล้วกดแชร์ไปโพสในแอปที่ต้องการได้เลย
-          </p>
+          <div style={M.cardT}>📁 โหลดไฟล์ที่มีอยู่แล้วเข้าสู่ระบบ</div>
           <input ref={videoFileInputRef} type="file" accept="video/*" style={{display:"none"}} onChange={handleVideoFile} />
-          <button style={M.btnS} onClick={()=>videoFileInputRef.current?.click()} disabled={expired}>📁 เลือกไฟล์วิดีโอ</button>
-          {videoFileName && videoBlob && mode==="upload" && (
-            <div style={{fontSize:"12px",color:TEXT_MUTED,marginTop:"8px"}}>📎 {videoFileName}</div>
-          )}
+          <button style={M.btnS} onClick={()=>videoFileInputRef.current?.click()}>📁 เลือกคลิปวิดีโอ</button>
         </div>
       )}
 
       {videoUrl && (
         <div style={M.card}>
-          <div style={M.cardT}>🎥 พรีวิว & แชร์ไปโพส</div>
-          <video src={videoUrl} controls style={{width:"100%",maxWidth:"260px",display:"block",margin:"0 auto",borderRadius:"12px",border:"1px solid rgba(255,255,255,0.1)"}} />
-
-          <button style={{...M.btnP,marginTop:"14px"}} onClick={shareVideo}>
-            📲 แชร์ไปโพส (เลือกแอปบนมือถือ)
-          </button>
-          <a href={videoUrl} download={videoFileName} style={{display:"block",textAlign:"center",marginTop:"8px",background:"rgba(255,255,255,0.08)",color:TEXT_MAIN,borderRadius:"10px",padding:"11px",fontSize:"14px",fontWeight:"700",textDecoration:"none"}}>
-            ⬇️ ดาวน์โหลดวิดีโอ
-          </a>
-          {shareMsg && (
-            <div style={{marginTop:"10px",fontSize:"12px",color: shareMsg.startsWith("✅")?GREEN:SHOPEE_ORANGE, background:"rgba(255,255,255,0.04)",borderRadius:"8px",padding:"8px 12px"}}>
-              {shareMsg}
-            </div>
-          )}
+          <div style={M.cardT}>🎥 ตัวอย่างวิดีโอ & สั่งงานโพส</div>
+          <video src={videoUrl} controls style={{width:"100%",maxWidth:"220px",display:"block",margin:"0 auto",borderRadius:"10px"}} />
+          <button style={{...M.btnP,marginTop:"14px"}} onClick={shareVideo}>📲 สั่งแชร์ไฟล์ไปยังแอปมือถือ</button>
+          <a href={videoUrl} download={videoFileName} style={{display:"block",textAlign:"center",marginTop:"8px",background:"rgba(255,255,255,0.08)",color:TEXT_MAIN,borderRadius:"10px",padding:"11px",textDecoration:"none",fontSize:"14px",fontWeight:"bold"}}>⬇️ บันทึกลงเครื่องมือถือ</a>
+          {shareMsg && <div style={{marginTop:"10px",fontSize:"12px",background:"#000",padding:"8px",borderRadius:"6px"}}>{shareMsg}</div>}
         </div>
       )}
-
-      {captionForVideo && (
-        <div style={M.card}>
-          <div style={M.cardT}>📝 แคปชั่นที่จะใช้คู่กับคลิปนี้</div>
-          <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"13px",lineHeight:"1.7",whiteSpace:"pre-wrap",color:TEXT_MAIN,border:"1px solid rgba(255,255,255,0.07)"}}>{captionForVideo}</div>
-          <p style={{fontSize:"11px",color:TEXT_MUTED,marginTop:"8px"}}>* แคปชั่นนี้จะถูกแนบไปพร้อมวิดีโอเมื่อกด "แชร์ไปโพส" (ในแอปที่รองรับ)</p>
-        </div>
-      )}
-
-      <div style={{...M.card,border:"1px solid rgba(245,166,35,0.15)"}}>
-        <div style={M.cardT}>ℹ️ วิธีใช้ปุ่ม "แชร์ไปโพส"</div>
-        <div style={{fontSize:"12px",color:TEXT_MUTED,lineHeight:"1.8"}}>
-          กดปุ่มแล้วมือถือจะเปิดหน้าเลือกแอป (Shopee, TikTok, Facebook, Instagram, Line ฯลฯ) — เลือกแอปที่ต้องการ วิดีโอ+แคปชั่นจะถูกส่งเข้าไปให้พร้อมโพสทันที ทำงานได้บน Android/Chrome เป็นหลัก หากอุปกรณ์ไม่รองรับการแชร์ไฟล์ ให้กดดาวน์โหลดวิดีโอแล้วเปิดแอปอัปโหลดเอง
-        </div>
-      </div>
     </div>
   );
 }
 
-// ─── POST QUEUE ──────────────────────────────────────────────
-// ใช้ตาราง Supabase ชื่อ "post_queue" (เก็บ id เป็น storageKey รูปแบบ queue:{licKey}:{timestamp})
-const Q_CACHE = {};
+// ─── 2. COMPONENT ตั้งค่าระบบ (SETTINGS) ───────────────────────
+function SettingsComponent({ M, BG_CARD }) {
+  const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem("anthropic_api_key") || "");
+  const [sessionInput, setSessionInput] = useState("");
+  const [delayInput, setDelayInput] = useState("60");
+  const [autoRetry, setAutoRetry] = useState(true);
 
-async function qList(licKey) {
-  const out = new Set();
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase.from("post_queue").select("id").eq("license_key", licKey);
-      if (!error && data) data.forEach(row => out.add(row.id));
-    } catch {}
-  }
-  try {
-    const prefix = `queue:${licKey}:`;
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(prefix)) out.add(k);
-    }
-  } catch {}
-  return [...out];
-}
-
-async function qGet(key) {
-  if (Q_CACHE[key]) return Q_CACHE[key];
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase.from("post_queue").select("*").eq("id", key).maybeSingle();
-      if (!error && data) {
-        const v = { title:data.title, platform:data.platform, datetime:data.datetime, caption:data.caption, status:data.status, createdAt:data.created_at, link:data.link, price:data.price, script:data.script };
-        Q_CACHE[key] = v;
-        return v;
-      }
-    } catch {}
-  }
-  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { return null; }
-}
-
-async function qSet(key, val) {
-  Q_CACHE[key] = val;
-  const licKey = key.split(":")[1];
-  if (isSupabaseConfigured) {
-    try {
-      await supabase.from("post_queue").upsert({
-        id: key, license_key: licKey, title: val.title, platform: val.platform,
-        datetime: val.datetime, caption: val.caption, status: val.status,
-        created_at: val.createdAt, link: val.link, price: val.price, script: val.script,
-      });
-    } catch {}
-  }
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
-
-async function qDel(key) {
-  delete Q_CACHE[key];
-  if (isSupabaseConfigured) {
-    try { await supabase.from("post_queue").delete().eq("id", key); } catch {}
-  }
-  try { localStorage.removeItem(key); } catch {}
-}
-
-function PostQueue({ M, licKey, expired, product, price, link, captionTmpl, captionAi, script }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ title:"", platform:"shopee_video", datetime:"", caption:"" });
-
-  const load = async () => {
-    setLoading(true);
-    const keys = await qList(licKey);
-    const list = [];
-    for (const k of keys) { const v = await qGet(k); if (v) list.push({ storageKey:k, ...v }); }
-    list.sort((a,b)=> new Date(a.datetime) - new Date(b.datetime));
-    setItems(list);
-    setLoading(false);
-  };
-  useEffect(()=>{ load(); },[licKey]);
-
-  useEffect(() => {
-    if (!form.title && product) setForm(f=>({...f, title: product}));
-    if (!form.caption && (captionTmpl||captionAi)) setForm(f=>({...f, caption: captionTmpl||captionAi}));
-  }, [product, captionTmpl, captionAi]);
-
-  const addItem = async () => {
-    if (!form.title || !form.datetime) return;
-    const id = `queue:${licKey}:${Date.now()}`;
-    const item = { ...form, status:"pending", createdAt:new Date().toISOString(), link, price, script };
-    await qSet(id, item);
-    setForm({ title:"", platform:"shopee_video", datetime:"", caption:"" });
-    load();
-  };
-  const toggleDone = async (it) => {
-    const updated = { ...it, status: it.status==="pending"?"done":"pending" };
-    await qSet(it.storageKey, updated);
-    load();
-  };
-  const removeItem = async (it) => { await qDel(it.storageKey); load(); };
-
-  const PLATFORM_LABEL = {
-    shopee_video: "🛒 Shopee Video",
-    shopee_live: "🔴 Shopee Live",
-    tiktok: "🎵 TikTok",
-    facebook: "📘 Facebook",
-    ig_reels: "📸 IG Reels",
+  const saveSettings = () => {
+    localStorage.setItem("anthropic_api_key", apiKeyInput.trim());
+    alert("💾 บันทึกการตั้งค่าระบบเรียบร้อยแล้วครับ!");
   };
 
   return (
-    <div style={M.body}>
-      <div style={M.card}>
-        <div style={M.cardT}>📅 เพิ่มคิวโพสใหม่</div>
-        <label style={M.label}>ชื่อรายการ / สินค้า</label>
-        <input style={M.input} placeholder="เช่น กระเป๋าผ้า Canvas" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} />
-        <label style={M.label}>แพลตฟอร์ม</label>
-        <select style={{...M.input}} value={form.platform} onChange={e=>setForm({...form,platform:e.target.value})}>
-          {Object.entries(PLATFORM_LABEL).map(([k,v])=>(<option key={k} value={k} style={{background:BG_CARD}}>{v}</option>))}
-        </select>
-        <label style={M.label}>วันเวลาที่ต้องการโพส</label>
-        <input style={M.input} type="datetime-local" value={form.datetime} onChange={e=>setForm({...form,datetime:e.target.value})} />
-        <label style={M.label}>แคปชั่น</label>
-        <textarea style={{...M.input,minHeight:"90px",resize:"vertical",fontFamily:"inherit"}} placeholder="แคปชั่นสำหรับโพสนี้..." value={form.caption} onChange={e=>setForm({...form,caption:e.target.value})} />
-        <button style={M.btnP} onClick={addItem} disabled={expired || !form.title || !form.datetime}>➕ เพิ่มเข้าคิว</button>
-      </div>
+    <div style={M.card}>
+      <div style={M.cardT}>⚙️ ตั้งค่าคีย์แอปพลิเคชัน & AI</div>
+      
+      <label style={M.label}>Anthropic API Key (สำหรับระบบเขียนโพสต์บอท AI)</label>
+      <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} />
 
-      <div style={M.card}>
-        <div style={M.cardT}>🗂️ คิวโพสทั้งหมด</div>
-        {loading ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"20px"}}>⏳ กำลังโหลด...</div>
-        : items.length===0 ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"20px",fontSize:"13px"}}>ยังไม่มีคิวโพส เพิ่มรายการด้านบนได้เลย</div>
-        : items.map(it=>{
-          const dt = new Date(it.datetime);
-          const isPast = dt < new Date();
-          return (
-            <div key={it.storageKey} style={{background:it.status==="done"?"rgba(39,174,96,0.08)":"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"12px",padding:"12px",marginBottom:"8px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"4px"}}>
-                <div style={{fontSize:"13px",fontWeight:"700",color:TEXT_MAIN}}>{it.title}</div>
-                <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"20px",background:it.status==="done"?"rgba(39,174,96,0.2)":isPast?"rgba(231,76,60,0.2)":"rgba(245,166,35,0.15)",color:it.status==="done"?GREEN:isPast?"#e74c3c":SHOPEE_ORANGE}}>
-                  {it.status==="done"?"✅ โพสแล้ว":isPast?"⏰ เลยกำหนด":"🕐 รอโพส"}
-                </span>
-              </div>
-              <div style={{fontSize:"12px",color:TEXT_MUTED,marginBottom:"3px"}}>{PLATFORM_LABEL[it.platform]} • {dt.toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"})}</div>
-              {it.caption && <div style={{fontSize:"12px",color:TEXT_MUTED,marginTop:"6px",whiteSpace:"pre-wrap",maxHeight:"60px",overflow:"hidden"}}>{it.caption.slice(0,120)}{it.caption.length>120?"...":""}</div>}
-              <div style={{display:"flex",gap:"8px",marginTop:"8px"}}>
-                <button style={{flex:1,padding:"6px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"700",cursor:"pointer",background:it.status==="done"?"rgba(230,126,34,0.2)":"rgba(39,174,96,0.2)",color:it.status==="done"?SHOPEE_ORANGE:GREEN}} onClick={()=>toggleDone(it)}>
-                  {it.status==="done"?"↩️ ยังไม่โพส":"✅ โพสแล้ว"}
-                </button>
-                <button style={{flex:1,padding:"6px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"700",cursor:"pointer",background:"rgba(231,76,60,0.2)",color:"#e74c3c"}} onClick={()=>removeItem(it)}>🗑️ ลบ</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{...M.card,border:"1px solid rgba(245,166,35,0.15)"}}>
-        <div style={M.cardT}>ℹ️ เกี่ยวกับคิวโพส</div>
-        <div style={{fontSize:"12px",color:TEXT_MUTED,lineHeight:"1.8"}}>
-          ระบบนี้เป็นตัวช่วยวางแผนและเช็กลิสต์การโพส — บันทึกวันเวลา แคปชั่น และสถานะไว้ให้ครบ การ "โพสขึ้นแพลตฟอร์มจริงแบบอัตโนมัติ" ต้องเชื่อมต่อ API ทางการของ Shopee/TikTok/Facebook ซึ่งต้องลงทะเบียนนักพัฒนาและขอสิทธิ์เข้าถึงแยกต่างหาก เมื่อถึงเวลาในคิว ระบบจะช่วยเตือนให้คุณกดโพสด้วยมือ พร้อมแคปชั่นและคลิปที่เตรียมไว้แล้ว
+      {/* 🟢 ส่วนโค้ด "ตั้งค่าและผูกบัญชี (Settings)" ที่คุณนำมาต่อฟอร์ม */}
+      <div style={{marginTop: "20px", paddingTop: "20px", borderTop: "1px solid rgba(255,255,255,0.1)"}}>
+        <div>
+          <h3 style={{fontSize:"15px", fontWeight:"600", color: TEXT_MAIN, margin:"0 0 4px"}}>ตั้งค่าบอทอัปโหลด & ผูกบัญชี</h3>
+          <p style={{fontSize:"11px", color: TEXT_MUTED, margin:"0 0 12px"}}>จัดการคีย์การเชื่อมต่อและหน่วงเวลาการทำงานอัตโนมัติ</p>
         </div>
+
+        <div style={{display:"grid", gridTemplateColumns: "1fr", gap: "10px", marginBottom: "12px"}}>
+          {/* ฟิลด์ผูกบัญชี Session / Cookie */}
+          <div style={{display: "flex", flexDirection: "column", gap: "4px"}}>
+            <label style={M.label}>TikTok Session / Cookie</label>
+            <input 
+              type="password" 
+              placeholder="วาง Session ID หรือ Cookie ที่นี่"
+              value={sessionInput}
+              onChange={e=>setSessionInput(e.target.value)}
+              style={M.input}
+            />
+          </div>
+
+          {/* ฟิลด์ตั้งค่า Delay */}
+          <div style={{display: "flex", flexDirection: "column", gap: "4px"}}>
+            <label style={M.label}>ระยะเวลาหน่วงระหว่างคลิป (วินาที)</label>
+            <input 
+              type="number" 
+              min="30"
+              value={delayInput}
+              onChange={e=>setDelayInput(e.target.value)}
+              placeholder="แนะนำ 60 วินาทีขึ้นไป"
+              style={M.input}
+            />
+          </div>
+        </div>
+
+        {/* บันทึกสิทธิ์บอท */}
+        <div style={{display: "flex", alignItems: "center", gap: "8px", margin: "14px 0"}}>
+          <input 
+            type="checkbox" 
+            id="autoRetry"
+            checked={autoRetry}
+            onChange={e=>setAutoRetry(e.target.checked)}
+            style={{width: "16px", height: "16px", cursor: "pointer"}}
+          />
+          <label htmlFor="autoRetry" style={{fontSize: "12px", color: TEXT_MAIN, cursor: "pointer"}}>
+            เปิดใช้งานลองใหม่อัตโนมัติ (Auto-Retry) เมื่อบอทอัปโหลดพังหรือหลุดคิว
+          </label>
+        </div>
+      </div>
+
+      <button style={M.btnP} onClick={saveSettings}>💾 บันทึกการตั้งค่าทั้งหมด</button>
+    </div>
+  );
+}
+
+// ─── 3. COMPONENT ตารางคิวงานแบบรองรับหลายคลิป (VIDEO QUEUE MANAGER) ───
+function VideoQueueManager({ M, licKey, expired, product, price, link, captionTmpl, captionAi, script, platform }) {
+  // ข้อมูลจำลองคลิปวิดีโอ/ล็อกการรันของบอท
+  const [videos, setVideos] = useState([
+    { id: 1, title: 'รีวิวสินค้าเกษตร_01.mp4', status: 'ready', queue: false },
+    { id: 2, title: 'แนะนำตัวยาอะซีทามิพริด.mp4', status: 'failed', queue: false, errorImg: 'https://via.placeholder.com/300x500?text=Error+Screen' },
+    { id: 3, title: 'คลิปเต้นเพลง playguy.mp4', status: 'queued', queue: true },
+    { id: 4, title: 'เซ็ตติ้งปักหมุดของดีราคาถูก.mp4', status: 'ready', queue: false },
+  ]);
+
+  // ไอดีของวิดีโอที่ถูกเลือก (Checkbox) เพื่อทำ Bulk Action
+  const [selectedVideoIds, setSelectedVideoIds] = useState([]);
+
+  // เลือกทั้งหมด / ยกเลิกทั้งหมด
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedVideoIds(videos.map(v => v.id));
+    } else {
+      setSelectedVideoIds([]);
+    }
+  };
+
+  // เลือกทีละรายการ
+  const handleSelectRow = (id) => {
+    if (selectedVideoIds.includes(id)) {
+      setSelectedVideoIds(selectedVideoIds.filter(item => item !== id));
+    } else {
+      setSelectedVideoIds([...selectedVideoIds, id]);
+    }
+  };
+
+  // ทำการจัดการหลายคลิปพร้อมกัน (Bulk Action) ลงคิว/ดึงกลับ
+  const handleBulkQueue = (actionType) => {
+    if (selectedVideoIds.length === 0) return alert('กรุณาเลือกคลิปวิดีโอก่อนครับ');
+    
+    setVideos(videos.map(video => {
+      if (selectedVideoIds.includes(video.id)) {
+        return { 
+          ...video, 
+          queue: actionType === 'add',
+          status: actionType === 'add' ? 'queued' : 'ready'
+        };
+      }
+      return video;
+    }));
+    setSelectedVideoIds([]); // รีเซ็ตการเลือกหลังจากทำเสร็จ
+  };
+
+  // จัดการส่งคิวงานรายตัว
+  const toggleQueue = (id) => {
+    setVideos(videos.map(video => {
+      if (video.id === id) {
+        return { ...video, queue: !video.queue, status: !video.queue ? 'queued' : 'ready' };
+      }
+      return video;
+    }));
+  };
+
+  return (
+    <div style={{display: "flex", flexDirection: "column", gap: "12px"}}>
+      
+      {/* 🟢 Bulk Action Bar (แถบจัดการคลิปพร้อมกันหลายๆ ตัว) */}
+      <div style={{display: "flex", justifyContent: "between", alignItems: "center", background: "rgba(255,255,255,0.04)", padding: "12px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)", justifyContent:"space-between"}}>
+        <div style={{fontSize: "13px", color: TEXT_MAIN}}>
+          เลือกอยู่ <span style={{fontWeight: "bold", color: SHOPEE_ORANGE}}>{selectedVideoIds.length}</span> รายการ
+        </div>
+        <div style={{display: "flex", gap: "6px"}}>
+          <button 
+            onClick={() => handleBulkQueue('add')}
+            style={{display: "flex", alignItems: "center", gap: "4px", background: "#4F46E5", color: "#fff", border: "none", fontSize: "11px", fontWeight: "bold", padding: "6px 10px", borderRadius: "6px", cursor: "pointer"}}
+          >
+            <Layers size={12} /> ส่งเข้าคิวที่เลือก
+          </button>
+          <button 
+            onClick={() => handleBulkQueue('remove')}
+            style={{display: "flex", alignItems: "center", gap: "4px", background: "rgba(255,255,255,0.1)", color: TEXT_MAIN, border: "none", fontSize: "11px", fontWeight: "bold", padding: "6px 10px", borderRadius: "6px", cursor: "pointer"}}
+          >
+            ดึงกลับที่เลือก
+          </button>
+        </div>
+      </div>
+
+      {/* 📊 ตารางจัดการ Log และคิวงาน */}
+      <div style={{...M.card, padding: "0px", overflowX: "auto"}}>
+        <table style={{width: "100%", borderCollapse: "collapse", textAlign: "left"}}>
+          <thead>
+            <tr style={{borderBottom: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)"}}>
+              <th style={{padding: "12px", width: "30px"}}>
+                <input 
+                  type="checkbox" 
+                  onChange={handleSelectAll}
+                  checked={selectedVideoIds.length === videos.length && videos.length > 0}
+                  style={{cursor: "pointer"}}
+                />
+              </th>
+              <th style={{padding: "12px", fontSize: "12px", color: TEXT_MUTED}}>ชื่อไฟล์วิดีโอ</th>
+              <th style={{padding: "12px", fontSize: "12px", color: TEXT_MUTED, textAlign: "center"}}>สถานะ / หลักฐานบอทพัง</th>
+              <th style={{padding: "12px", fontSize: "12px", color: TEXT_MUTED, textAlign: "right"}}>จัดการ (Action)</th>
+            </tr>
+          </thead>
+          <tbody style={{fontSize: "13px"}}>
+            {videos.map((log) => (
+              <tr key={log.id} style={{borderBottom: "1px solid rgba(255,255,255,0.05)"}}>
+                {/* Checkbox เลือกแถว */}
+                <td style={{padding: "12px"}}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedVideoIds.includes(log.id)}
+                    onChange={() => handleSelectRow(log.id)}
+                    style={{cursor: "pointer"}}
+                  />
+                </td>
+                <td style={{padding: "12px", fontWeight: "500", color: TEXT_MAIN}}>{log.title}</td>
+                
+                {/* 🔴 คอลัมน์สถานะ + เงื่อนไขเช็กรูปตอนบอทพัง (Failed Image) */}
+                <td style={{padding: "12px", textAlign: "center"}}>
+                  <div style={{display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"}}>
+                    <span style={{
+                      padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold",
+                      background: log.status === 'queued' ? "rgba(245,166,35,0.15)" : log.status === 'failed' ? "rgba(238,77,45,0.15)" : "rgba(255,255,255,0.1)",
+                      color: log.status === 'queued' ? SHOPEE_ORANGE : log.status === 'failed' ? "#FF6B6B" : TEXT_MUTED
+                    }}>
+                      {log.status === 'queued' ? 'อยู่ในคิว' : log.status === 'failed' ? 'บอทพัง' : 'เตรียมพร้อม'}
+                    </span>
+
+                    {/* ปุ่มดูรูปตอนพัง: จะยอมให้ปุ่มนี้แสดงผลขึ้นมาเฉพาะ log.status === 'failed' เท่านั้น */}
+                    {log.status === 'failed' && (
+                      <button 
+                        onClick={() => alert(`📦 ภาพบันทึกหน้าจอตอนบอททำงานพลาด:\n\nURL แหล่งเก็บ: ${log.errorImg}`)}
+                        style={{display: "flex", alignItems: "center", gap: "2px", background: "rgba(238,77,45,0.2)", color: "#FF8B8B", border: "1px solid rgba(238,77,45,0.4)", borderRadius: "4px", padding: "2px 6px", fontSize: "11px", cursor: "pointer"}}
+                      >
+                        <Eye size={12} /> ดูรูปพัง
+                      </button>
+                    )}
+                  </div>
+                </td>
+
+                {/* 🔵 คอลัมน์ส่งเข้าคิวงาน / ดึงกลับที่คอลัมน์สุดท้าย */}
+                <td style={{padding: "12px", textAlign: "right"}}>
+                  <button
+                    onClick={() => toggleQueue(log.id)}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", padding: "5px 10px", borderRadius: "6px", border: "none", cursor: "pointer", color: "#fff",
+                      background: log.queue ? "#D35400" : GREEN
+                    }}
+                  >
+                    {log.queue ? (
+                      <>
+                        <ArrowLeft size={12} /> ดึงกลับ
+                      </>
+                    ) : (
+                      <>
+                        ส่งเข้าคิว <ArrowRight size={12} />
+                      </>
+                    )}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-
+// ─── UTILS COMPONENTS ───────────────────────────────────────
 function ResultBox({ text, id, copied, onCopy }) {
   return (
     <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"13px",lineHeight:"1.7",whiteSpace:"pre-wrap",color:TEXT_MAIN,marginTop:"10px",border:"1px solid rgba(255,255,255,0.07)",position:"relative"}}>
@@ -1058,65 +1110,19 @@ function ResultBox({ text, id, copied, onCopy }) {
 }
 
 const MS = {
-  app:{minHeight:"100vh",background:BG_DARK,color:TEXT_MAIN,fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif"},
-  hdr:{background:`linear-gradient(135deg,${SHOPEE_RED},#8B0000)`,padding:"18px 20px 14px",position:"relative",overflow:"hidden"},
-  glow:{position:"absolute",top:"-50%",left:"50%",transform:"translateX(-50%)",width:"200%",height:"200%",background:"radial-gradient(ellipse,rgba(255,200,0,0.1) 0%,transparent 70%)",pointerEvents:"none"},
+  app:{minHeight:"100vh",background:BG_DARK,color:TEXT_MAIN,paddingBottom:"40px",fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif"},
+  hdr:{padding:"18px 20px 14px",position:"relative",overflow:"hidden"},
+  glow:{position:"absolute",top:"-50%",left:"50%",transform:"translateX(-50%)",width:"200%",height:"200%",background:"radial-gradient(ellipse,rgba(255,200,0,0.08) 0%,transparent 70%)",pointerEvents:"none"},
   logo:{fontSize:"24px",fontWeight:"900",margin:"0 0 2px"},
-  badge:(c)=>({background:c&&c!==undefined?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"20px",padding:"3px 10px",fontSize:"11px",color:"#fff",fontFamily:"monospace"}),
+  badge:(c)=>({background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"20px",padding:"3px 10px",fontSize:"11px",color:c?c:"#fff",fontFamily:"monospace"}),
   body:{padding:"14px",maxWidth:"600px",margin:"0 auto"},
   card:{background:BG_CARD,borderRadius:"16px",padding:"16px",marginBottom:"12px",border:"1px solid rgba(255,255,255,0.07)"},
   cardT:{fontSize:"14px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"12px"},
   label:{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"5px"},
   input:{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"10px"},
-  tab:(a)=>({flex:1,padding:"9px",borderRadius:"10px",border:"none",fontSize:"13px",fontWeight:a?"700":"400",cursor:"pointer",background:a?SHOPEE_RED:"rgba(255,255,255,0.06)",color:a?"#fff":TEXT_MUTED}),
-  tmplBtn:(a)=>({padding:"10px",borderRadius:"10px",border:a?`2px solid ${SHOPEE_RED}`:"1px solid rgba(255,255,255,0.1)",background:a?"rgba(238,77,45,0.15)":"rgba(255,255,255,0.03)",color:a?"#fff":TEXT_MUTED,fontSize:"13px",fontWeight:a?"700":"400",cursor:"pointer"}),
+  tab:(a)=>({padding:"8px 16px",borderRadius:"10px",border:"none",fontSize:"12px",fontWeight:a?"700":"400",cursor:"pointer",background:a?SHOPEE_RED:"rgba(255,255,255,0.06)",color:a?"#fff":TEXT_MUTED,display:"inline-flex",alignItems:"center"},),
+  tmplBtn:(a)=>({padding:"10px",borderRadius:"10px",border:a?`2px solid ${SHOPEE_RED}`:"1px solid rgba(255,255,255,0.1)",background:a?"rgba(238,77,45,0.15)":"rgba(255,255,255,0.03)",color:a?"#fff":TEXT_MUTED,fontSize:"13px",cursor:"pointer"}),
   chip:{display:"inline-block",background:"rgba(245,166,35,0.12)",border:"1px solid rgba(245,166,35,0.25)",borderRadius:"20px",padding:"4px 10px",fontSize:"11px",color:SHOPEE_ORANGE,margin:"0 4px 4px 0",cursor:"pointer"},
-  btnP:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"11px",fontSize:"14px",fontWeight:"700",cursor:"pointer",marginTop:"2px"},
+  btnP:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"11px",fontSize:"14px",fontWeight:"700",cursor:"pointer",marginTop:"10px"},
   btnS:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_ORANGE},#E67E22)`,color:"#fff",border:"none",borderRadius:"10px",padding:"11px",fontSize:"14px",fontWeight:"700",cursor:"pointer"},
 };
-  return (
-    <div className="flex h-screen bg-slate-100">
-      {/* 1. แถบเมนูด้านซ้ายของคุณที่มีอยู่แล้ว */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      {/* 2. ส่วนพื้นที่ฝั่งขวา: แบ่งพื้นที่เป็น บน (Header) และ ล่าง (Content) */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* ─── แถบ Header ด้านบนที่เพิ่มเข้ามาใหม่ พร้อมปุ่มเปิด-ปิดบอท ─── */}
-        <header className="flex justify-between items-center px-8 py-4 bg-white border-b border-slate-200 shadow-sm">
-          <h1 className="text-xl font-bold text-slate-800">
-            {activeTab === 'videos' && '🎥 จัดการวิดีโอ'}
-            {activeTab === 'products' && '📦 ลิงก์สินค้า'}
-            {activeTab === 'logs' && '📜 บันทึกระบบบอท'}
-            {activeTab === 'settings' && '⚙️ ตั้งค่าโปรแกรม'}
-          </h1>
-          
-          {/* ปุ่มควบคุมบอทหลัก (Master Control) */}
-          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-            <span className="text-xs font-semibold text-slate-500 px-2">สถานะบอท:</span>
-            
-            <button onClick={() => alert('กำลังเปิดระบบบอท...')} 
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all">
-              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-              เปิดบอท (Start)
-            </button>
-
-            <button onClick={() => alert('หยุดบอทชั่วคราวเรียบร้อยแล้ว')} 
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-sm transition-all">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-              หยุดชั่วคราว (Pause)
-            </button>
-          </div>
-        </header>
-
-        {/* 3. ส่วนเนื้อหาหลักด้านล่าง (ดึงฟังก์ชันเดิมมาทำงานในนี้) */}
-        <main className="flex-1 overflow-auto p-8">
-          {renderContent()}
-        </main>
-
-      </div>
-    </div>
-  );
-};
-
-export default App;
