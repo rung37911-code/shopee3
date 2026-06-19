@@ -216,7 +216,7 @@ function LoginScreen({ onSuccess }) {
           </>
         )}
         <div style={{textAlign:"center",marginTop:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>
-          ClipAIMaster v2.6 • Dual Platform Support
+          ClipAIMaster v2.5 • Dual Platform Support
         </div>
       </div>
     </div>
