@@ -79,7 +79,7 @@ function keyDataToSupaRow(code, v) {
 
 function isExpired(kd) { return kd?.expiresAt ? new Date() > new Date(kd.expiresAt) : false; }
 function fmtDate(iso) {
-  if (!iso) return "เธ•เธฅเธญเธ”เธเธตเธ";
+  if (!iso) return "ตลอดชีพ";
   return new Date(iso).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
 function daysLeft(iso) {
@@ -98,14 +98,14 @@ function getExpiry(type) {
 }
 
 const TEMPLATES = [
-  { id:"hype", name:"๐”ฅ เนเธเนเธฃเธ", fn:(p,pr,d,plat)=>plat==="shopee" ? `๐”ฅ๐’ เธเธฑเธเธ•เธฐเธเธฃเนเธฒเธ”เนเธงเธ!!\n\nโจ ${p}\n๐’ฐ เธฃเธฒเธเธฒ ${pr} เธเธฒเธ—\n${d?`๐ฏ เธฅเธ” ${d}%\n`:""}โก เธชเธ•เนเธญเธเธกเธตเธเธณเธเธฑเธ”!\n๐“ฒ เธเธ”เธฅเธดเธเธเนเนเธเนเธเธฃเนเธเธฅเน\n\n#Shopee #เธเธฑเธเธ•เธฐเธเธฃเนเธฒ #เธฅเธ”เธฃเธฒเธเธฒ` : `๐”ฅ๐’ เธเธดเธเธฑเธ”เนเธเธ•เธฐเธเธฃเนเธฒเน€เธซเธฅเธทเธญเธเธ”เนเธงเธ!!\n\nโจ ${p}\n๐’ฐ เธฃเธฒเธเธฒเธเธดเน€เธจเธฉ ${pr} เธเธฒเธ—\n${d?`๐ฏ เธฅเธ”เธเธธเธเน ${d}%\n`:""}โก เธเนเธฒเธซเธกเธ”เธญเธ”เธเธฐเธฃเธญเธเธเธตเน!\n๐“ฒ เธเธดเนเธกเธ—เธตเนเธ•เธฐเธเธฃเนเธฒเธเนเธฒเธขเธกเธทเธญเธเธเธเธฅเธดเธเนเธ”เนเน€เธฅเธข\n\n#TikTokเธเธฃเธตเน€เธญเน€เธ•เธญเธฃเน #TikTokShop #เธเธฑเธเธ•เธฐเธเธฃเนเธฒ #เธฅเธ”เธฃเธฒเธเธฒ` },
-  { id:"review", name:"โญ เธฃเธตเธงเธดเธง", fn:(p,pr,d,plat)=>plat==="shopee" ? `โญ เธฃเธตเธงเธดเธงเธเธฃเธดเธ เนเธกเนเธเธดเธ”!\n\n๐“ฆ ${p}\n๐’ต ${pr} เธเธฒเธ—\n${d?`๐’ธ เธเธฃเธฐเธซเธขเธฑเธ” ${d}%\n`:""}โ… เธเธญเธเธ”เธต เธฃเธฒเธเธฒเธเธธเนเธก!\n\n#เธฃเธตเธงเธดเธง #Shopee #เธเธญเธเธ”เธตเธฃเธฒเธเธฒเธ–เธนเธ` : `โญ เธฃเธตเธงเธดเธงเธเธฒเธเธเธนเนเนเธเนเธเธฃเธดเธ!\n\n๐“ฆ ${p}\n๐’ต เน€เธเธตเธขเธ ${pr} เธเธฒเธ—\n${d?`๐’ธ เธเธฃเธฐเธซเธขเธฑเธ”เนเธเธญเธตเธ ${d}%\n`:""}โ… เธเธญเธเธ•เธฃเธเธเธ เนเธกเนเธเธเธ•เธฒ เธ”เธตเธเธฃเธดเธเธเธญเธเธ•เนเธญ!\n\n#เธฃเธตเธงเธดเธงเธเธญเธเธ”เธต #TikTokShop #เธฃเธตเธงเธดเธง #เธเธญเธเธ”เธตเธฃเธฒเธเธฒเธ–เธนเธ` },
-  { id:"flash", name:"โก เน€เธเธฅเน€เธ”เธทเธญเธ”", fn:(p,pr,d,plat)=>plat==="shopee" ? `โก FLASH SALE เนเธเนเธงเธฑเธเธเธตเน!!\n\n๐ ${p}\n๐ท๏ธ ${pr} เธเธฒเธ—!\n${d?`๐”ด เธฅเธ” ${d}%\n`:""}โฐ เธฃเธฒเธเธฒเธเธตเนเธกเธตเน€เธงเธฅเธฒเธเธณเธเธฑเธ”!\n\n#FlashSale #Shopee #Deal` : `โก เธ”เธตเธฅเน€เธ”เธทเธญเธ” เธเธฒเธ—เธตเธ—เธญเธ!!\n\n๐ ${p}\n๐ท๏ธ เธฃเธฒเธเธฒเธฅเธ”เน€เธซเธฅเธทเธญ ${pr} เธเธฒเธ—!\n${d?`๐”ด เธซเธฑเนเธเธฃเธฒเธเธฒเธฅเธ ${d}%\n`:""}โฐ เน€เธเธเธฒเธฐเนเธเธเธฅเธดเธเธเธตเนเน€เธ—เนเธฒเธเธฑเนเธ เธฃเธตเธเธเธ”!\n\n#เธ”เธตเธฅเน€เธ”เนเธ” #TikTokShop #FlashSale #เธฅเธ”เธฃเธฒเธเธฒ` },
-  { id:"tiktok", name:"๐ต เธชเนเธ•เธฅเนเธงเธฑเธขเธฃเธธเนเธ", fn:(p,pr,d,plat)=>plat==="shopee" ? `POV: เน€เธเธญเธเธญเธเธ”เธตเธฃเธฒเธเธฒเนเธเธ•เธฃเธ–เธนเธ ๐ฑ\n\n${p} เนเธเน ${pr} เธเธฒเธ—!!${d?` (เธฅเธ” ${d}%)`:""}\n\nเนเธเธเธ•เธฐเธเธฃเนเธฒเธเนเธญเธ!\n\n#fy #fyp #Shopee #เธเธฑเธเธ•เธฐเธเธฃเนเธฒ` : `POV: เนเธเธเธเธฑเธเธเธฑเธเนเธซเนเธฃเธตเธงเธดเธงเธชเธดเนเธเธเธตเน ๐ฑ\n\n${p} เนเธเน ${pr} เธเธฒเธ—เน€เธญเธ!!${d?` (เธฅเธ”เธ•เธฑเนเธ ${d}%)`:""}\n\nเธเธดเนเธกเธ•เธฐเธเธฃเนเธฒเน€เธซเธฅเธทเธญเธเธเนเธฒเธเธฅเนเธฒเธเธ”เนเธงเธเธเนเธญเธเธซเธกเธ”เนเธเธฃ!\n\n#fyp #เธเธญเธเธกเธฑเธเธ•เนเธญเธเธกเธต #TikTokShop #เธ•เธฐเธเธฃเนเธฒเน€เธซเธฅเธทเธญเธ` },
+  { id:"hype", name:"🔥 ไฟแรง", fn:(p,pr,d,plat)=>plat==="shopee" ? `🔥🛒 ปักตะกร้าด่วน!!\n\n✨ ${p}\n💰 ราคา ${pr} บาท\n${d?`🎯 ลด ${d}%\n`:""}⚡ สต็อกมีจำกัด!\n📲 กดลิงก์ในโปรไฟล์\n\n#Shopee #ปักตะกร้า #ลดราคา` : `🔥🛒 พิกัดในตะกร้าเหลืองด่วน!!\n\n✨ ${p}\n💰 ราคาพิเศษ ${pr} บาท\n${d?`🎯 ลดจุกๆ ${d}%\n`:""}⚡ ช้าหมดอดนะรอบนี้!\n📲 จิ้มที่ตะกร้าซ้ายมือบนคลิปได้เลย\n\n#TikTokครีเอเตอร์ #TikTokShop #ปักตะกร้า #ลดราคา` },
+  { id:"review", name:"⭐ รีวิว", fn:(p,pr,d,plat)=>plat==="shopee" ? `⭐ รีวิวจริง ไม่ปิด!\n\n📦 ${p}\n💵 ${pr} บาท\n${d?`💸 ประหยัด ${d}%\n`:""}✅ ของดี ราคาคุ้ม!\n\n#รีวิว #Shopee #ของดีราคาถูก` : `⭐ รีวิวจากผู้ใช้จริง!\n\n📦 ${p}\n💵 เพียง ${pr} บาท\n${d?`💸 ประหยัดไปอีก ${d}%\n`:""}✅ ของตรงปก ไม่จกตา ดีจริงบอกต่อ!\n\n#รีวิวของดี #TikTokShop #รีวิว #ของดีราคาถูก` },
+  { id:"flash", name:"⚡ เซลเดือด", fn:(p,pr,d,plat)=>plat==="shopee" ? `⚡ FLASH SALE แค่วันนี้!!\n\n🎁 ${p}\n🏷️ ${pr} บาท!\n${d?`🔴 ลด ${d}%\n`:""}⏰ ราคานี้มีเวลาจำกัด!\n\n#FlashSale #Shopee #Deal` : `⚡ ดีลเดือด นาทีทอง!!\n\n🎁 ${p}\n🏷️ ราคาลดเหลือ ${pr} บาท!\n${d?`🔴 หั่นราคาลง ${d}%\n`:""}⏰ เฉพาะในคลิปนี้เท่านั้น รีบกด!\n\n#ดีลเด็ด #TikTokShop #FlashSale #ลดราคา` },
+  { id:"tiktok", name:"🎵 สไตล์วัยรุ่น", fn:(p,pr,d,plat)=>plat==="shopee" ? `POV: เจอของดีราคาโคตรถูก 😱\n\n${p} แค่ ${pr} บาท!!${d?` (ลด ${d}%)`:""}\n\nแบกตะกร้าก่อน!\n\n#fy #fyp #Shopee #ปักตะกร้า` : `POV: แฟนบังคับให้รีวิวสิ่งนี้ 😱\n\n${p} แค่ ${pr} บาทเอง!!${d?` (ลดตั้ง ${d}%)`:""}\n\nจิ้มตะกร้าเหลืองข้างล่างด่วนก่อนหมดโปร!\n\n#fyp #ของมันต้องมี #TikTokShop #ตะกร้าเหลือง` },
 ];
-const HOOKS = ["เธซเธขเธธเธ”เน€เธฅเธทเนเธญเธเธเนเธญเธ! เธเธตเนเธเธทเธญเธชเธดเนเธเธ—เธตเนเธเธธเธ“เธ•เนเธญเธเธเธฒเธฃ","เธฃเธฒเธเธฒเธเธตเนเธ•เนเธญเธเธเธญเธเธ•เนเธญ!!","เน€เธเธทเนเธญเธเธเธญเธเธกเธฒ เธฅเธญเธเนเธฅเนเธงเธ•เธดเธ”เนเธ","เธเธฑเธเธ•เธฐเธเธฃเนเธฒเนเธงเนเธเนเธญเธ เธ•เธฑเธ”เธชเธดเธเนเธเธ—เธตเธซเธฅเธฑเธ","เธฅเธ”เนเธฅเนเธง! เธญเธขเนเธฒเธเธฅเธฒเธ”!"];
+const HOOKS = ["หยุดเลื่อนก่อน! นี่คือสิ่งที่คุณต้องการ","ราคานี้ต้องบอกต่อ!!","เพื่อนบอกมา ลองแล้วติดใจ","ปักตะกร้าไว้ก่อน ตัดสินใจทีหลัง","ลดแล้ว! อย่าพลาด!"];
 
-// โ”€โ”€โ”€ ROOT โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── ROOT ───────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("login");
   const [sess, setSess] = useState(null);
@@ -116,7 +116,7 @@ export default function App() {
       if (!existing) {
         await kSet(`key:${DEMO_KEY}`, {
           code: DEMO_KEY, type: "monthly", buyerName: "Demo User",
-          note: "Key เธ—เธ”เธชเธญเธเธฃเธฐเธเธ", active: true,
+          note: "Key ทดสอบระบบ", active: true,
           createdAt: new Date().toISOString(),
           expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
           loginCount: 0, lastLogin: null,
@@ -133,7 +133,7 @@ export default function App() {
   return <LoginScreen onSuccess={login} />;
 }
 
-// โ”€โ”€โ”€ LOGIN SCREEN โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── LOGIN SCREEN ───────────────────────────────────────────
 function LoginScreen({ onSuccess }) {
   const [mode, setMode] = useState("user");
   const [keyVal, setKeyVal] = useState("");
@@ -143,12 +143,12 @@ function LoginScreen({ onSuccess }) {
 
   const doUserLogin = async () => {
     const k = keyVal.trim().toUpperCase();
-    if (!k) { setErr("เธเธฃเธธเธ“เธฒเธเธฃเธญเธ License Key"); return; }
+    if (!k) { setErr("กรุณากรอก License Key"); return; }
     setLoading(true); setErr("");
     const kd = await kGet(`key:${k}`);
-    if (!kd) { setErr("โ เนเธกเนเธเธ Key เธเธตเนเนเธเธฃเธฐเธเธ"); setLoading(false); return; }
-    if (!kd.active) { setErr("โ Key เธ–เธนเธเธฃเธฐเธเธฑเธเธเธฒเธฃเนเธเนเธเธฒเธ"); setLoading(false); return; }
-    if (isExpired(kd)) { setErr(`โ Key เธซเธกเธ”เธญเธฒเธขเธธ ${fmtDate(kd.expiresAt)}`); setLoading(false); return; }
+    if (!kd) { setErr("❌ ไม่พบ Key นี้ในระบบ"); setLoading(false); return; }
+    if (!kd.active) { setErr("❌ Key ถูกระงับการใช้งาน"); setLoading(false); return; }
+    if (isExpired(kd)) { setErr(`❌ Key หมดอายุ ${fmtDate(kd.expiresAt)}`); setLoading(false); return; }
     kd.lastLogin = new Date().toISOString();
     kd.loginCount = (kd.loginCount||0)+1;
     await kSet(`key:${k}`, kd);
@@ -156,7 +156,7 @@ function LoginScreen({ onSuccess }) {
     onSuccess(k, kd, false);
   };
   const doAdminLogin = () => {
-    if (pass !== ADMIN_PASSWORD) { setErr("โ เธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ"); return; }
+    if (pass !== ADMIN_PASSWORD) { setErr("❌ รหัสผ่านไม่ถูกต้อง"); return; }
     onSuccess("ADMIN", { name:"Admin", type:"admin" }, true);
   };
 
@@ -165,32 +165,32 @@ function LoginScreen({ onSuccess }) {
     <div style={S.bg}>
       <div style={S.box}>
         <div style={S.logoWrap}>
-          <div style={{fontSize:"40px"}}>๐€</div>
+          <div style={{fontSize:"40px"}}>🚀</div>
           <div style={S.logoText}>ClipAI<span style={{color:SHOPEE_ORANGE}}>Master</span></div>
-          <div style={S.logoSub}>เธฃเธฐเธเธเธชเธฃเนเธฒเธเธเธฅเธดเธเธเธฑเธเธ•เธฐเธเธฃเนเธฒ + เนเธเธเธเธฑเนเธ เธญเธฑเธ•เนเธเธกเธฑเธ•เธด (Shopee & TikTok)</div>
+          <div style={S.logoSub}>ระบบสร้างคลิปปักตะกร้า + แคปชั่น อัตโนมัติ (Shopee & TikTok)</div>
         </div>
         <div style={S.tabRow}>
-          <button style={S.tab(mode==="user")} onClick={()=>{setMode("user");setErr("");}}>๐”‘ เน€เธเนเธฒเนเธเนเธเธฒเธ</button>
-          <button style={S.tab(mode==="admin")} onClick={()=>{setMode("admin");setErr("");}}>โ๏ธ Admin</button>
+          <button style={S.tab(mode==="user")} onClick={()=>{setMode("user");setErr("");}}>🔑 เข้าใช้งาน</button>
+          <button style={S.tab(mode==="admin")} onClick={()=>{setMode("admin");setErr("");}}>⚙️ Admin</button>
         </div>
         {mode==="user" ? (
           <>
             <label style={S.label}>License Key</label>
             <input style={S.input} placeholder="SCL-MO-XXXXXXXX" value={keyVal} onChange={e=>setKeyVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doUserLogin()} />
-            <div style={S.hint}>* Key เนเธ”เนเธฃเธฑเธเธเธฒเธเธเธนเนเธเธฒเธข</div>
-            <div style={{fontSize:"12px",color:SHOPEE_ORANGE,marginBottom:"12px",cursor:"pointer"}} onClick={()=>setKeyVal(DEMO_KEY)}>๐งช เธเธ”เน€เธเธทเนเธญเนเธชเน Demo Key เธ—เธ”เธชเธญเธ</div>
+            <div style={S.hint}>* Key ได้รับจากผู้ขาย</div>
+            <div style={{fontSize:"12px",color:SHOPEE_ORANGE,marginBottom:"12px",cursor:"pointer"}} onClick={()=>setKeyVal(DEMO_KEY)}>🧪 กดเพื่อใส่ Demo Key ทดสอบ</div>
             {err && <div style={S.err}>{err}</div>}
-            <button style={S.btn} onClick={doUserLogin} disabled={loading}>{loading ? "โณ เธเธณเธฅเธฑเธเธ•เธฃเธงเธเธชเธญเธ..." : "เน€เธเนเธฒเนเธเนเธเธฒเธ โ’"}</button>
+            <button style={S.btn} onClick={doUserLogin} disabled={loading}>{loading ? "⏳ กำลังตรวจสอบ..." : "เข้าใช้งาน →"}</button>
           </>
         ) : (
           <>
-            <label style={S.label}>เธฃเธซเธฑเธชเธเนเธฒเธ Admin</label>
-            <input style={S.input} type="password" placeholder="โ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ข" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAdminLogin()} />
+            <label style={S.label}>รหัสผ่าน Admin</label>
+            <input style={S.input} type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAdminLogin()} />
             {err && <div style={S.err}>{err}</div>}
-            <button style={S.btn} onClick={doAdminLogin}>เน€เธเนเธฒ Admin Panel โ’</button>
+            <button style={S.btn} onClick={doAdminLogin}>เข้า Admin Panel →</button>
           </>
         )}
-        <div style={{textAlign:"center",marginTop:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>ClipAIMaster v2.6 โ€ข Dual Platform Support</div>
+        <div style={{textAlign:"center",marginTop:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>ClipAIMaster v2.6 • Dual Platform Support</div>
       </div>
     </div>
   );
@@ -210,7 +210,7 @@ const LS = {
   btn:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"13px",fontSize:"15px",fontWeight:"700",cursor:"pointer",marginTop:"4px"},
 };
 
-// โ”€โ”€โ”€ ADMIN PANEL โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── ADMIN PANEL ────────────────────────────────────────────
 function AdminPanel({ onLogout }) {
   const [tab, setTab] = useState("create");
   const [keys, setKeys] = useState([]);
@@ -240,13 +240,13 @@ function AdminPanel({ onLogout }) {
 
   const createKey = async () => {
     const code = genKey(newType);
-    const kd = { code, type:newType, buyerName:newName||"เนเธกเนเธฃเธฐเธเธธ", note:newNote, active:true, createdAt:new Date().toISOString(), expiresAt:getExpiry(newType), loginCount:0, lastLogin:null };
+    const kd = { code, type:newType, buyerName:newName||"ไม่ระบุ", note:newNote, active:true, createdAt:new Date().toISOString(), expiresAt:getExpiry(newType), loginCount:0, lastLogin:null };
     await kSet(`key:${code}`, kd);
     setCreated(code); setNewName(""); setNewNote("");
   };
 
   const toggleKey = async (code, cur) => { const d = await kGet(`key:${code}`); if (d) { d.active=!cur; await kSet(`key:${code}`,d); loadKeys(); } };
-  const deleteKey = async (code) => { if (!confirm(`เธฅเธ Key ${code}?`)) return; await kDel(`key:${code}`); loadKeys(); };
+  const deleteKey = async (code) => { if (!confirm(`ลบ Key ${code}?`)) return; await kDel(`key:${code}`); loadKeys(); };
   const copyKey = (text) => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(()=>setCopied(false),2000); };
 
   const filtered = keys.filter(k=>k.keyCode.includes(search.toUpperCase())||k.buyerName?.includes(search)||k.note?.includes(search));
@@ -255,62 +255,62 @@ function AdminPanel({ onLogout }) {
   return (
     <div style={A.wrap}>
       <div style={A.hdr}>
-        <div><div style={A.hdrT}>โ๏ธ Admin Panel</div><div style={A.hdrS}>ClipAI โ€” เธเธฑเธ”เธเธฒเธฃ License Keys เธ—เธฑเนเธเธซเธกเธ”</div></div>
-        <button style={A.logoutBtn} onClick={onLogout}>เธญเธญเธเธเธฒเธเธฃเธฐเธเธ</button>
+        <div><div style={A.hdrT}>⚙️ Admin Panel</div><div style={A.hdrS}>ClipAI — จัดการ License Keys ทั้งหมด</div></div>
+        <button style={A.logoutBtn} onClick={onLogout}>ออกจากระบบ</button>
       </div>
       <div style={A.statsRow}>
-        {[["๐”‘ เธ—เธฑเนเธเธซเธกเธ”",stats.total,"#667eea"],["โ… เนเธเนเนเธ”เน",stats.active,GREEN],["โ เธซเธกเธ”เธญเธฒเธขเธธ",stats.expired,"#e74c3c"],["๐“… เธฃเธฒเธขเน€เธ”เธทเธญเธ",stats.monthly,SHOPEE_ORANGE],["๐“ เธฃเธฒเธขเธเธต",stats.yearly,"#9B59B6"],["โพ๏ธ เธ•เธฅเธญเธ”เธเธตเธ",stats.lifetime,"#1ABC9C"]].map(([l,v,c])=>(
+        {[["🔑 ทั้งหมด",stats.total,"#667eea"],["✅ ใช้ได้",stats.active,GREEN],["❌ หมดอายุ",stats.expired,"#e74c3c"],["📅 รายเดือน",stats.monthly,SHOPEE_ORANGE],["📆 รายปี",stats.yearly,"#9B59B6"],["♾️ ตลอดชีพ",stats.lifetime,"#1ABC9C"]].map(([l,v,c])=>(
           <div key={l} style={A.statBox}><div style={{fontSize:"20px",fontWeight:"800",color:c}}>{v}</div><div style={{fontSize:"11px",color:TEXT_MUTED}}>{l}</div></div>
         ))}
       </div>
       <div style={A.tabRow}>
-        {[["create","โ• เธชเธฃเนเธฒเธ Key"],["keys","๐—๏ธ Keys เธ—เธฑเนเธเธซเธกเธ”"]].map(([id,lb])=>(
+        {[["create","➕ สร้าง Key"],["keys","🗃️ Keys ทั้งหมด"]].map(([id,lb])=>(
           <button key={id} style={A.tab(tab===id)} onClick={()=>setTab(id)}>{lb}</button>
         ))}
       </div>
       <div style={A.body}>
         {tab==="create" && (
           <div style={A.card}>
-            <div style={A.cardT}>โ• เธชเธฃเนเธฒเธ License Key เนเธซเธกเน</div>
-            <label style={A.label}>เธเธทเนเธญเธเธนเนเธเธทเนเธญ / เธฃเนเธฒเธเธเนเธฒ</label>
-            <input style={A.input} placeholder="เน€เธเนเธ เธฃเนเธฒเธเธชเธกเธเธฒเธข, Line: @shop" value={newName} onChange={e=>setNewName(e.target.value)} />
-            <label style={A.label}>เธเธฃเธฐเน€เธ เธ— Key</label>
+            <div style={A.cardT}>➕ สร้าง License Key ใหม่</div>
+            <label style={A.label}>ชื่อผู้ซื้อ / ร้านค้า</label>
+            <input style={A.input} placeholder="เช่น ร้านสมชาย, Line: @shop" value={newName} onChange={e=>setNewName(e.target.value)} />
+            <label style={A.label}>ประเภท Key</label>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
-              {[["monthly","๐“… เธฃเธฒเธขเน€เธ”เธทเธญเธ","30 เธงเธฑเธ"],["yearly","๐“ เธฃเธฒเธขเธเธต","365 เธงเธฑเธ"],["lifetime","โพ๏ธ เธ•เธฅเธญเธ”เธเธตเธ","เนเธกเนเธซเธกเธ”เธญเธฒเธขเธธ"]].map(([v,l,s])=>(
+              {[["monthly","📅 รายเดือน","30 วัน"],["yearly","📆 รายปี","365 วัน"],["lifetime","♾️ ตลอดชีพ","ไม่หมดอายุ"]].map(([v,l,s])=>(
                 <div key={v} style={A.typeBox(newType===v)} onClick={()=>setNewType(v)}>
                   <div style={{fontSize:"13px",fontWeight:"700"}}>{l}</div>
                   <div style={{fontSize:"11px",color:TEXT_MUTED}}>{s}</div>
                 </div>
               ))}
             </div>
-            <label style={A.label}>เธซเธกเธฒเธขเน€เธซเธ•เธธ</label>
-            <input style={A.input} placeholder="เน€เธเนเธ เธเธณเธฃเธฐ 299 เธเธฒเธ—" value={newNote} onChange={e=>setNewNote(e.target.value)} />
-            <button style={A.btnP} onClick={createKey}>๐”‘ เธชเธฃเนเธฒเธ Key เนเธซเธกเน</button>
+            <label style={A.label}>หมายเหตุ</label>
+            <input style={A.input} placeholder="เช่น ชำระ 299 บาท" value={newNote} onChange={e=>setNewNote(e.target.value)} />
+            <button style={A.btnP} onClick={createKey}>🔑 สร้าง Key ใหม่</button>
             {created && (
               <div style={{marginTop:"14px",background:"rgba(39,174,96,0.1)",border:"1px solid rgba(39,174,96,0.3)",borderRadius:"12px",padding:"14px"}}>
-                <div style={{fontSize:"13px",color:TEXT_MUTED,marginBottom:"6px"}}>โ… เธชเธฃเนเธฒเธเธชเธณเน€เธฃเนเธ!</div>
+                <div style={{fontSize:"13px",color:TEXT_MUTED,marginBottom:"6px"}}>✅ สร้างสำเร็จ!</div>
                 <div style={{fontFamily:"monospace",fontSize:"18px",fontWeight:"800",color:GREEN,letterSpacing:"2px",textAlign:"center",padding:"10px",background:"rgba(0,0,0,0.3)",borderRadius:"8px",marginBottom:"8px"}}>{created}</div>
-                <button style={{width:"100%",background:GREEN,color:"#fff",border:"none",borderRadius:"8px",padding:"9px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}} onClick={()=>copyKey(created)}>{copied?"โ“ เธเธฑเธ”เธฅเธญเธเนเธฅเนเธง":"๐“ เธเธฑเธ”เธฅเธญเธ Key"}</button>
+                <button style={{width:"100%",background:GREEN,color:"#fff",border:"none",borderRadius:"8px",padding:"9px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}} onClick={()=>copyKey(created)}>{copied?"✓ คัดลอกแล้ว":"📋 คัดลอก Key"}</button>
               </div>
             )}
           </div>
         )}
         {tab==="keys" && (
           <>
-            <input style={{...A.input,marginBottom:"10px"}} placeholder="๐” เธเนเธเธซเธฒ Key / เธเธทเนเธญเธเธนเนเธเธทเนเธญ..." value={search} onChange={e=>setSearch(e.target.value)} />
-            {loading ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>โณ เธเธณเธฅเธฑเธเนเธซเธฅเธ”...</div>
-            : filtered.length===0 ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>เนเธกเนเธเธเธเนเธญเธกเธนเธฅ</div>
+            <input style={{...A.input,marginBottom:"10px"}} placeholder="🔍 ค้นหา Key / ชื่อผู้ซื้อ..." value={search} onChange={e=>setSearch(e.target.value)} />
+            {loading ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>⏳ กำลังโหลด...</div>
+            : filtered.length===0 ? <div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>ไม่พบข้อมูล</div>
             : filtered.map(k=>{ const exp=isExpired(k); return (
               <div key={k.keyCode} style={{background:k.active&&!exp?BG_CARD:"rgba(20,10,10,0.6)",borderRadius:"12px",padding:"14px",marginBottom:"10px",border:k.active&&!exp?"1px solid rgba(255,255,255,0.08)":"1px solid rgba(238,77,45,0.2)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
                   <span style={{fontFamily:"monospace",fontSize:"14px",fontWeight:"800",color:TEXT_MAIN}}>{k.keyCode}</span>
-                  <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"20px",background:"rgba(255,255,255,0.1)",color:SHOPEE_ORANGE}}>{k.type==="monthly"?"เธฃเธฒเธขเน€เธ”เธทเธญเธ":k.type==="yearly"?"เธฃเธฒเธขเธเธต":"เธ•เธฅเธญเธ”เธเธตเธ"}</span>
+                  <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"20px",background:"rgba(255,255,255,0.1)",color:SHOPEE_ORANGE}}>{k.type==="monthly"?"รายเดือน":k.type==="yearly"?"รายปี":"ตลอดชีพ"}</span>
                 </div>
-                <div style={{fontSize:"12px",color:TEXT_MUTED}}>{k.buyerName ? `๐‘ค ${k.buyerName} | ๐“ ${k.note}` : ""}</div>
-                <div style={{fontSize:"12px",color:TEXT_MUTED}}>โฐ เธซเธกเธ”เธญเธฒเธขเธธ: {exp?<span style={{color:"#e74c3c"}}>เธซเธกเธ”เนเธฅเนเธง</span>:<span>{fmtDate(k.expiresAt)}</span>}</div>
+                <div style={{fontSize:"12px",color:TEXT_MUTED}}>{k.buyerName ? `👤 ${k.buyerName} | 📝 ${k.note}` : ""}</div>
+                <div style={{fontSize:"12px",color:TEXT_MUTED}}>⏰ หมดอายุ: {exp?<span style={{color:"#e74c3c"}}>หมดแล้ว</span>:<span>{fmtDate(k.expiresAt)}</span>}</div>
                 <div style={{display:"flex",gap:"8px",marginTop:"8px"}}>
-                  <button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(255,255,255,0.1)",color:TEXT_MAIN}} onClick={()=>toggleKey(k.keyCode,k.active)}>{k.active?"๐”’ เธฃเธฐเธเธฑเธ":"โ… เน€เธเธดเธ”เนเธเน"}</button>
-                  <button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(231,76,60,0.2)",color:"#e74c3c"}} onClick={()=>deleteKey(k.keyCode)}>๐—‘๏ธ เธฅเธ</button>
+                  <button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(255,255,255,0.1)",color:TEXT_MAIN}} onClick={()=>toggleKey(k.keyCode,k.active)}>{k.active?"🔒 ระงับ":"✅ เปิดใช้"}</button>
+                  <button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(231,76,60,0.2)",color:"#e74c3c"}} onClick={()=>deleteKey(k.keyCode)}>🗑️ ลบ</button>
                 </div>
               </div>
             );})}
@@ -338,7 +338,7 @@ const AS = {
   btnP:{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"14px",fontWeight:"700",cursor:"pointer"},
 };
 
-// โ”€โ”€โ”€ MAIN APP โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── MAIN APP ───────────────────────────────────────────────
 function MainApp({ sess, onLogout }) {
   const { key: licKey, info: keyInfo } = sess;
   const [page, setPage] = useState("content");
@@ -380,21 +380,21 @@ function MainApp({ sess, onLogout }) {
     setLoad(true);
     try {
       const apiKey = localStorage.getItem("anthropic_api_key") || "";
-      if (!apiKey) { setFn("โ ๏ธ เธขเธฑเธเนเธกเนเนเธ”เนเธ•เธฑเนเธเธเนเธฒ Anthropic API Key โ€” เธเธ”เธเธธเนเธก 'เธ•เธฑเนเธเธเนเธฒเธฃเธฐเธเธ' เน€เธเธทเนเธญเธเธฃเธญเธ API Key"); setLoad(false); return; }
+      if (!apiKey) { setFn("⚠️ ยังไม่ได้ตั้งค่า Anthropic API Key — กดปุ่ม 'ตั้งค่าระบบ' เพื่อกรอก API Key"); setLoad(false); return; }
       const r = await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:prompt}]})
       });
       const d = await r.json();
-      if (d.error) { setFn(`โ ๏ธ เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”: ${d.error.message}`); setLoad(false); return; }
-      setFn(d.content?.map(c=>c.text||"").join("")||"เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ” เธฅเธญเธเนเธซเธกเน");
-    } catch { setFn("เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ” เธฅเธญเธเนเธซเธกเน"); }
+      if (d.error) { setFn(`⚠️ เกิดข้อผิดพลาด: ${d.error.message}`); setLoad(false); return; }
+      setFn(d.content?.map(c=>c.text||"").join("")||"เกิดข้อผิดพลาด ลองใหม่");
+    } catch { setFn("เกิดข้อผิดพลาด ลองใหม่"); }
     setLoad(false);
   };
 
-  const genAI = () => callAI(`เธเธธเธ“เน€เธเนเธ Social Media Copywriter เน€เธเธตเนเธขเธงเธเธฒเธเธเธฒเธขเธเธญเธเธญเธญเธเนเธฅเธเนเธเนเธฒเธเธฃเธฐเธเธเนเธญเธเธเธดเธฅเธดเน€เธญเธ• เธเธเนเธเธฅเธ•เธเธญเธฃเนเธก ${platform.toUpperCase()}\nเธชเธฃเนเธฒเธเนเธเธเธเธฑเนเธเธเธฑเธเธ•เธฐเธเธฃเนเธฒเธชเธณเธซเธฃเธฑเธ:\n- เธชเธดเธเธเนเธฒ: ${product}\n- เธฃเธฒเธเธฒ: ${price} เธเธฒเธ—\n${disc?`- เธฅเธ”: ${disc}%\n`:""}${link?`- เธฅเธดเธเธเนเธเธดเธเธฑเธ”: ${link}\n`:""}\nเนเธซเนเธกเธต: เธเธณเน€เธเธดเธ”เธ•เธฑเธงเธ”เธถเธเธ”เธนเธ” (Hook), เธ เธฒเธฉเธฒเนเธ—เธขเธฎเธดเธ•เน เธงเธฑเธขเธฃเธธเนเธเธเธญเธ, Emoji เธเนเธฒเธฃเธฑเธเธเธญเธ”เธต, เธงเธดเธเธตเธชเธฑเนเธเธเธทเนเธญเธ—เธตเนเน€เธซเธกเธฒเธฐเธเธฑเธ ${platform}, เนเธฎเธเนเธ—เนเธ 5-8 เธญเธฑเธ\nเธ•เธญเธเธ”เนเธงเธขเธเนเธญเธเธงเธฒเธกเนเธเธเธเธฑเนเธเน€เธ—เนเธฒเธเธฑเนเธ`, setCaptionAi, setAiLoading);
-  const genScript = () => callAI(`เธชเธฃเนเธฒเธเธชเธเธฃเธดเธเธ•เนเธเธฅเธดเธเธชเธฑเนเธเธชเธณเธซเธฃเธฑเธเธฃเธฑเธเธเธเนเธเธฅเธ•เธเธญเธฃเนเธก ${platform.toUpperCase()} เธเธฑเธเธ•เธฐเธเธฃเนเธฒเนเธญเธเธเธดเธฅเธดเน€เธญเธ•:\n- เธชเธดเธเธเนเธฒ: ${product}\n- เธฃเธฒเธเธฒ: ${price} เธเธฒเธ—\n${disc?`- เธฅเธ”: ${disc}%\n`:""}\nเธฃเธนเธเนเธเธเธชเธเธฃเธดเธเธ•เนเธเธงเธฒเธกเธขเธฒเธง 15-30 เธงเธดเธเธฒเธ—เธต:\n[0-3 เธงเธด] HOOK:\n[3-10 เธงเธด] เธฃเธตเธงเธดเธง:\n[10-20 เธงเธด] เธเธธเธ”เธงเนเธฒเธง:\n[20-30 เธงเธด] เธเธดเธ”เธเธฒเธฃเธเธฒเธข + เธเธดเธเธฑเธ”:\nเนเธเนเธ เธฒเธฉเธฒเนเธ—เธขเธชเนเธ•เธฅเนเธญเธดเธเธเธฅเธนเน€เธญเธเน€เธเธญเธฃเน`, setScript, setScriptLoading);
+  const genAI = () => callAI(`คุณเป็น Social Media Copywriter เชี่ยวชาญขายของออนไลน์ผ่านระบบแอฟฟิลิเอต บนแพลตฟอร์ม ${platform.toUpperCase()}\nสร้างแคปชั่นปักตะกร้าสำหรับ:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}${link?`- ลิงก์พิกัด: ${link}\n`:""}\nให้มี: คำเปิดตัวดึงดูด (Hook), ภาษาไทยฮิตๆ วัยรุ่นชอบ, Emoji น่ารักพอดี, วิธีสั่งซื้อที่เหมาะกับ ${platform}, แฮชแท็ก 5-8 อัน\nตอบด้วยข้อความแคปชั่นเท่านั้น`, setCaptionAi, setAiLoading);
+  const genScript = () => callAI(`สร้างสคริปต์คลิปสั้นสำหรับรันบนแพลตฟอร์ม ${platform.toUpperCase()} ปักตะกร้าแอฟฟิลิเอต:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}\nรูปแบบสคริปต์ความยาว 15-30 วินาที:\n[0-3 วิ] HOOK:\n[3-10 วิ] รีวิว:\n[10-20 วิ] จุดว้าว:\n[20-30 วิ] ปิดการขาย + พิกัด:\nใช้ภาษาไทยสไตล์อินฟลูเอนเซอร์`, setScript, setScriptLoading);
 
   const copy = (text,id) => { navigator.clipboard.writeText(text); setCopied(id); setTimeout(()=>setCopied(""),2000); };
 
@@ -407,48 +407,48 @@ function MainApp({ sess, onLogout }) {
         return (
           <>
             <div style={M.card}>
-              <div style={M.cardT}>๐“ฆ เธเนเธญเธกเธนเธฅเธชเธดเธเธเนเธฒเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธเธฒเธข</div>
-              <label style={M.label}>เธเธทเนเธญเธชเธดเธเธเนเธฒ *</label>
-              <input style={M.input} placeholder="เน€เธเนเธ เธเธฃเธฐเน€เธเนเธฒเธเนเธฒ Canvas เธฅเธฒเธขเธเธฒเธฃเนเธ•เธนเธ" value={product} onChange={e=>setProduct(e.target.value)} />
+              <div style={M.cardT}>📦 ข้อมูลสินค้าที่ต้องการขาย</div>
+              <label style={M.label}>ชื่อสินค้า *</label>
+              <input style={M.input} placeholder="เช่น กระเป๋าผ้า Canvas ลายการ์ตูน" value={product} onChange={e=>setProduct(e.target.value)} />
               <div style={{display:"flex",gap:"10px"}}>
-                <div style={{flex:1}}><label style={M.label}>เธฃเธฒเธเธฒ (เธเธฒเธ—) *</label><input style={M.input} type="number" placeholder="299" value={price} onChange={e=>setPrice(e.target.value)} /></div>
-                <div style={{flex:1}}><label style={M.label}>เธฅเธ” (%)</label><input style={M.input} type="number" placeholder="20" value={disc} onChange={e=>setDisc(e.target.value)} /></div>
+                <div style={{flex:1}}><label style={M.label}>ราคา (บาท) *</label><input style={M.input} type="number" placeholder="299" value={price} onChange={e=>setPrice(e.target.value)} /></div>
+                <div style={{flex:1}}><label style={M.label}>ลด (%)</label><input style={M.input} type="number" placeholder="20" value={disc} onChange={e=>setDisc(e.target.value)} /></div>
               </div>
-              <label style={M.label}>เธฅเธดเธเธเนเธชเธดเธเธเนเธฒ ({platform === "shopee" ? "Shopee" : "TikTok Shop"})</label>
-              <input style={{...M.input,marginBottom:0}} placeholder="เธงเธฒเธเธฅเธดเธเธเนเธเธฑเธเธซเธกเธธเธ”เธ—เธตเนเธเธตเน..." value={link} onChange={e=>setLink(e.target.value)} />
+              <label style={M.label}>ลิงก์สินค้า ({platform === "shopee" ? "Shopee" : "TikTok Shop"})</label>
+              <input style={{...M.input,marginBottom:0}} placeholder="วางลิงก์ปักหมุดที่นี่..." value={link} onChange={e=>setLink(e.target.value)} />
             </div>
             <div style={M.card}>
-              <div style={M.cardT}>โ๏ธ เธชเธฃเนเธฒเธเนเธเธเธเธฑเนเธเธเธฒเธขเธเธญเธ</div>
+              <div style={M.cardT}>✍️ สร้างแคปชั่นขายของ</div>
               <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-                <button style={M.tab(activeTab==="template")} onClick={()=>setActiveTab("template")}>๐“ เนเธเนเน€เธ—เธกเน€เธเธฅเธ•</button>
-                <button style={M.tab(activeTab==="ai")} onClick={()=>setActiveTab("ai")}>๐ค– เธชเนเธเนเธซเน AI เนเธ•เนเธ</button>
+                <button style={M.tab(activeTab==="template")} onClick={()=>setActiveTab("template")}>📋 ใช้เทมเพลต</button>
+                <button style={M.tab(activeTab==="ai")} onClick={()=>setActiveTab("ai")}>🤖 ส่งให้ AI แต่ง</button>
               </div>
               {activeTab==="template"&&(
                 <>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"12px"}}>
                     {TEMPLATES.map(t=>(<button key={t.id} style={M.tmplBtn(tmpl===t.id)} onClick={()=>setTmpl(t.id)}>{t.name}</button>))}
                   </div>
-                  <label style={M.label}>เน€เธฅเธทเธญเธเธเธณเธเธถเนเธเธ•เนเธ (Hook)</label>
+                  <label style={M.label}>เลือกคำขึ้นต้น (Hook)</label>
                   <div style={{marginBottom:"8px"}}>{HOOKS.slice(0,4).map(h=>(<span key={h} style={M.chip} onClick={()=>setHook(h)}>{h}</span>))}</div>
-                  <input style={M.input} placeholder="เธซเธฃเธทเธญเธเธดเธกเธเน hook เน€เธญเธ..." value={hook} onChange={e=>setHook(e.target.value)} />
-                  <button style={M.btnP} onClick={genTemplate} disabled={expired}>โจ เธชเธฑเนเธเน€เธเน€เธเธญเน€เธฃเธ•เนเธเธเธเธฑเนเธ</button>
+                  <input style={M.input} placeholder="หรือพิมพ์ hook เอง..." value={hook} onChange={e=>setHook(e.target.value)} />
+                  <button style={M.btnP} onClick={genTemplate} disabled={expired}>✨ สั่งเจเนอเรตแคปชั่น</button>
                   {captionTmpl&&<ResultBox text={captionTmpl} id="tmpl" copied={copied} onCopy={copy}/>}
                 </>
               )}
               {activeTab==="ai"&&(
                 <>
-                  <button style={{...M.btnP,opacity:aiLoading?0.7:1}} onClick={genAI} disabled={aiLoading||expired}>{aiLoading?"โณ เธเธญเธ— AI เธเธณเธฅเธฑเธเน€เธเธตเธขเธเนเธซเน...":"๐ค– เธเธ”เธเธธเนเธกเนเธซเน AI เน€เธเธเนเธเธเธเธฑเนเธเธเธดเน€เธจเธฉ"}</button>
+                  <button style={{...M.btnP,opacity:aiLoading?0.7:1}} onClick={genAI} disabled={aiLoading||expired}>{aiLoading?"⏳ บอท AI กำลังเขียนให้...":"🤖 กดปุ่มให้ AI เจนแคปชั่นพิเศษ"}</button>
                   {captionAi&&<ResultBox text={captionAi} id="ai" copied={copied} onCopy={copy}/>}
                 </>
               )}
             </div>
             <div style={M.card}>
-              <div style={M.cardT}>๐ฌ เธชเธเธฃเธดเธเธ•เนเธเธนเธ”เนเธเธเธฅเธดเธเธชเธฑเนเธ (AI)</div>
-              <button style={{...M.btnS,opacity:scriptLoading?0.7:1}} onClick={genScript} disabled={scriptLoading||expired}>{scriptLoading?"โณ AI เธเธณเธฅเธฑเธเน€เธฃเธตเธขเธเน€เธฃเธตเธขเธเธชเธเธฃเธดเธเธ•เนเน€เธชเธตเธขเธ...":"๐ฌ เธชเธฃเนเธฒเธเธชเธเธฃเธดเธเธ•เนเธชเธฑเนเธ 15-30 เธงเธด"}</button>
+              <div style={M.cardT}>🎬 สคริปต์พูดในคลิปสั้น (AI)</div>
+              <button style={{...M.btnS,opacity:scriptLoading?0.7:1}} onClick={genScript} disabled={scriptLoading||expired}>{scriptLoading?"⏳ AI กำลังเรียบเรียงสคริปต์เสียง...":"🎬 สร้างสคริปต์สั้น 15-30 วิ"}</button>
               {script&&(
                 <div style={{marginTop:"12px"}}>
                   <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"6px"}}>
-                    <button style={{background:"rgba(255,255,255,0.08)",border:"none",color:TEXT_MUTED,borderRadius:"8px",padding:"6px 14px",fontSize:"12px",cursor:"pointer"}} onClick={()=>copy(script,"scr")}>{copied==="scr"?"โ“ เธเธฑเธ”เธฅเธญเธเนเธฅเนเธง":"๐“ เธเธฑเธ”เธฅเธญเธเธชเธเธฃเธดเธเธ•เน"}</button>
+                    <button style={{background:"rgba(255,255,255,0.08)",border:"none",color:TEXT_MUTED,borderRadius:"8px",padding:"6px 14px",fontSize:"12px",cursor:"pointer"}} onClick={()=>copy(script,"scr")}>{copied==="scr"?"✓ คัดลอกแล้ว":"📋 คัดลอกสคริปต์"}</button>
                   </div>
                   <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"12px",lineHeight:"1.8",whiteSpace:"pre-wrap",color:TEXT_MAIN,border:"1px solid rgba(255,255,255,0.07)",maxHeight:"280px",overflowY:"auto"}}>{script}</div>
                 </div>
@@ -473,8 +473,8 @@ function MainApp({ sess, onLogout }) {
         <div style={M.glow}/>
         <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"12px"}}>
           <div>
-            <div style={M.logo}>๐€ ClipAI<span style={{color: platform === "shopee" ? SHOPEE_ORANGE : TIKTOK_CYAN}}>{platform === "shopee" ? "Shopee" : "TikTok"}</span></div>
-            <div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)"}}>เธฃเธฐเธเธเธชเธฃเนเธฒเธเธเธฅเธดเธเธเธฑเธเธ•เธฐเธเธฃเนเธฒ + เนเธเธเธเธฑเนเธเธญเธฑเธเธเธฃเธดเธขเธฐ</div>
+            <div style={M.logo}>🚀 ClipAI<span style={{color: platform === "shopee" ? SHOPEE_ORANGE : TIKTOK_CYAN}}>{platform === "shopee" ? "Shopee" : "TikTok"}</span></div>
+            <div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)"}}>ระบบสร้างคลิปปักตะกร้า + แคปชั่นอัจฉริยะ</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <div style={{textAlign:"right"}}>
@@ -483,34 +483,34 @@ function MainApp({ sess, onLogout }) {
             </div>
             <button onClick={handleToggleBot} disabled={botStatus==="Stopping"}
               style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 14px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:isBotRunning?"#E74C3C":"#27AE60",color:"#fff",opacity:botStatus==="Stopping"?0.6:1}}>
-              {botStatus==="Stopping" ? <><RefreshCw style={{width:"14px",height:"14px"}}/>เธเธณเธฅเธฑเธเธซเธขเธธเธ”...</> : isBotRunning ? <><Square style={{width:"14px",height:"14px"}}/>เธเธดเธ”เธเธญเธ—เธฃเธฐเธเธ</> : <><Play style={{width:"14px",height:"14px"}}/>เน€เธเธดเธ”เธเธญเธ—เธฃเธฐเธเธ</>}
+              {botStatus==="Stopping" ? <><RefreshCw style={{width:"14px",height:"14px"}}/>กำลังหยุด...</> : isBotRunning ? <><Square style={{width:"14px",height:"14px"}}/>ปิดบอทระบบ</> : <><Play style={{width:"14px",height:"14px"}}/>เปิดบอทระบบ</>}
             </button>
           </div>
         </div>
         <div style={{position:"relative",zIndex:1,marginTop:"12px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
           <div style={{display:"flex",gap:"6px"}}>
             <span style={M.badge()}>{licKey}</span>
-            <span style={M.badge(expired?"#e74c3c":GREEN)}>{expired?"โ เธซเธกเธ”เธญเธฒเธขเธธ":keyInfo?.type==="lifetime"?"โพ๏ธ เธ•เธฅเธญเธ”เธเธตเธ":`โฐ เน€เธซเธฅเธทเธญ ${dl} เธงเธฑเธ`}</span>
-            <span style={{...M.badge(),cursor:"pointer"}} onClick={onLogout}>เธญเธญเธเธเธฒเธเธฃเธฐเธเธ</span>
+            <span style={M.badge(expired?"#e74c3c":GREEN)}>{expired?"❌ หมดอายุ":keyInfo?.type==="lifetime"?"♾️ ตลอดชีพ":`⏰ เหลือ ${dl} วัน`}</span>
+            <span style={{...M.badge(),cursor:"pointer"}} onClick={onLogout}>ออกจากระบบ</span>
           </div>
           <div style={{display:"flex",background:"rgba(0,0,0,0.4)",padding:"4px",borderRadius:"12px",border:"1px solid rgba(255,255,255,0.1)"}}>
-            <button onClick={()=>{setPlatform("shopee");setCaptionTmpl("");setCaptionAi("");setScript("");}} style={{padding:"6px 14px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",background:platform==="shopee"?SHOPEE_RED:"transparent",color:"#fff"}}>๐งก Shopee</button>
-            <button onClick={()=>{setPlatform("tiktok");setCaptionTmpl("");setCaptionAi("");setScript("");}} style={{padding:"6px 14px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",background:platform==="tiktok"?"#fff":"transparent",color:platform==="tiktok"?"#000":"#fff"}}>๐–ค TikTok</button>
+            <button onClick={()=>{setPlatform("shopee");setCaptionTmpl("");setCaptionAi("");setScript("");}} style={{padding:"6px 14px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",background:platform==="shopee"?SHOPEE_RED:"transparent",color:"#fff"}}>🧡 Shopee</button>
+            <button onClick={()=>{setPlatform("tiktok");setCaptionTmpl("");setCaptionAi("");setScript("");}} style={{padding:"6px 14px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",background:platform==="tiktok"?"#fff":"transparent",color:platform==="tiktok"?"#000":"#fff"}}>🖤 TikTok</button>
           </div>
         </div>
       </div>
 
       <div style={{margin:"14px auto 0",maxWidth:"600px",padding:"0 14px"}}>
         <div style={{background:platform==="shopee"?"rgba(238,77,45,0.1)":"rgba(255,255,255,0.05)",border:`1px solid ${platform==="shopee"?SHOPEE_ORANGE:"#fff"}30`,padding:"10px",borderRadius:"10px",fontSize:"12px",textAlign:"center"}}>
-          {platform==="shopee"?"๐งก เธฃเธฐเธเธเธ—เธณเธเธฒเธเนเธเนเธซเธกเธ” Shopee Affiliate":"๐–ค เธฃเธฐเธเธเธ—เธณเธเธฒเธเนเธเนเธซเธกเธ” TikTok Affiliate"}
+          {platform==="shopee"?"🧡 ระบบทำงานในโหมด Shopee Affiliate":"🖤 ระบบทำงานในโหมด TikTok Affiliate"}
         </div>
       </div>
 
       <div style={{display:"flex",gap:"6px",padding:"14px 14px 0",maxWidth:"600px",margin:"0 auto",flexWrap:"wrap"}}>
-        <button style={M.tab(page==="content")} onClick={()=>setPage("content")}><FileText size={14} style={{marginRight:4}}/>เน€เธเธตเธขเธเนเธเธชเธ•เน</button>
-        <button style={M.tab(page==="video")} onClick={()=>setPage("video")}>๐ฌ เธชเธฃเนเธฒเธเธเธฅเธดเธ</button>
-        <button style={M.tab(page==="queue")} onClick={()=>setPage("queue")}><ListOrdered size={14} style={{marginRight:4}}/>เธเธดเธงเธเธฒเธ & เธเธญเธ—</button>
-        <button style={M.tab(page==="settings")} onClick={()=>setPage("settings")}><Settings size={14} style={{marginRight:4}}/>เธ•เธฑเนเธเธเนเธฒเธฃเธฐเธเธ</button>
+        <button style={M.tab(page==="content")} onClick={()=>setPage("content")}><FileText size={14} style={{marginRight:4}}/>เขียนโพสต์</button>
+        <button style={M.tab(page==="video")} onClick={()=>setPage("video")}>🎬 สร้างคลิป</button>
+        <button style={M.tab(page==="queue")} onClick={()=>setPage("queue")}><ListOrdered size={14} style={{marginRight:4}}/>คิวงาน & บอท</button>
+        <button style={M.tab(page==="settings")} onClick={()=>setPage("settings")}><Settings size={14} style={{marginRight:4}}/>ตั้งค่าระบบ</button>
       </div>
 
       <div style={M.body}>{renderContent()}</div>
@@ -518,7 +518,7 @@ function MainApp({ sess, onLogout }) {
   );
 }
 
-// โ”€โ”€โ”€ VIDEO GENERATOR โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── VIDEO GENERATOR ────────────────────────────────────────
 function VideoGenerator({ M, expired, product, price, disc, captionForVideo, platform }) {
   const [mode, setMode] = useState("generate");
   const [images, setImages] = useState([]);
@@ -535,7 +535,7 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (!overlayText && product) setOverlayText(`${product}${price?` | ${price} เธเธฒเธ—`:""}${disc?` เธฅเธ” ${disc}%`:""}`);
+    if (!overlayText && product) setOverlayText(`${product}${price?` | ${price} บาท`:""}${disc?` ลด ${disc}%`:""}`);
   }, [product, price, disc]);
 
   const handleFiles = (e) => {
@@ -585,7 +585,7 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
         if (price) {
           ctx.fillStyle = platform==="shopee"?SHOPEE_RED:"#FF0050"; ctx.fillRect(W/2-140,H-100,280,64);
           ctx.fillStyle="#fff"; ctx.font="bold 36px 'Segoe UI', sans-serif"; ctx.textAlign="center";
-          ctx.fillText(`${price} เธเธฒเธ—${disc?` (-${disc}%)`:""}}`,W/2,H-56);
+          ctx.fillText(`${price} บาท${disc?` (-${disc}%)`:""}}`,W/2,H-56);
         }
         setProgress(Math.min(100,Math.round((elapsed/totalDuration)*100)));
         if (elapsed < totalDuration) requestAnimationFrame(frame); else resolveAll();
@@ -605,14 +605,14 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
 
   const shareVideo = async () => {
     if (!videoBlob) return;
-    const captionText = captionForVideo || `${product} เธฃเธฒเธเธฒ ${price} เธเธฒเธ—`;
+    const captionText = captionForVideo || `${product} ราคา ${price} บาท`;
     try {
       const file = new File([videoBlob], videoFileName, { type: videoBlob.type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: "ClipAI Post", text: captionText });
-        setShareMsg("โ… เน€เธฃเธตเธขเธเธซเธเนเธฒเธฃเธฒเธขเธเธฒเธฃเนเธเธชเธ•เนเธชเธณเน€เธฃเนเธ");
-      } else { setShareMsg("โ ๏ธ เธญเธธเธเธเธฃเธ“เนเนเธกเนเธฃเธญเธเธฃเธฑเธเธเธฒเธฃเนเธเธฃเนเนเธเธฅเนเธญเธฑเธ•เนเธเธกเธฑเธ•เธด เนเธซเนเธ”เธฒเธงเธเนเนเธซเธฅเธ”เธฅเธเน€เธเธฃเธทเนเธญเธเนเธฅเนเธงเนเธเธญเธฑเธเนเธซเธฅเธ”เน€เธญเธเธเธฃเธฑเธ"); }
-    } catch { setShareMsg("โ ๏ธ เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเธชเนเธเนเธเธฅเน"); }
+        setShareMsg("✅ เรียกหน้ารายการโพสต์สำเร็จ");
+      } else { setShareMsg("⚠️ อุปกรณ์ไม่รองรับการแชร์ไฟล์อัตโนมัติ ให้ดาวน์โหลดลงเครื่องแล้วไปอัปโหลดเองครับ"); }
+    } catch { setShareMsg("⚠️ เกิดข้อผิดพลาดในการส่งไฟล์"); }
   };
 
   function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
@@ -625,49 +625,49 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
   return (
     <div>
       <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-        <button style={M.tab(mode==="generate")} onClick={()=>setMode("generate")}>๐–ผ๏ธ เธ—เธณเธเธฅเธดเธเธเธฒเธเธฃเธนเธ</button>
-        <button style={M.tab(mode==="upload")} onClick={()=>setMode("upload")}>๐“ เธ”เธถเธเธเธฅเธดเธเธเธฒเธเน€เธเธฃเธทเนเธญเธ</button>
+        <button style={M.tab(mode==="generate")} onClick={()=>setMode("generate")}>🖼️ ทำคลิปจากรูป</button>
+        <button style={M.tab(mode==="upload")} onClick={()=>setMode("upload")}>📁 ดึงคลิปจากเครื่อง</button>
       </div>
       {mode==="generate" && (
         <div style={M.card}>
-          <div style={M.cardT}>๐ฌ เธเธฅเธดเธ•เธเธฅเธดเธเธงเธดเธ”เธตเนเธญเธญเธญเนเธ•เน</div>
+          <div style={M.cardT}>🎬 ผลิตคลิปวิดีโอออโต้</div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={handleFiles} />
-          <button style={M.btnS} onClick={()=>fileInputRef.current?.click()} disabled={expired}>๐“ท เธญเธฑเธเนเธซเธฅเธ”เธฃเธนเธเธชเธดเธเธเนเธฒ (เธชเธนเธเธชเธธเธ” 10 เธฃเธนเธ)</button>
+          <button style={M.btnS} onClick={()=>fileInputRef.current?.click()} disabled={expired}>📷 อัปโหลดรูปสินค้า (สูงสุด 10 รูป)</button>
           {images.length>0 && (
             <div style={{display:"flex",flexWrap:"wrap",gap:"8px",marginTop:"12px"}}>
               {images.map((img,i)=>(
                 <div key={i} style={{position:"relative",width:"60px",height:"85px",borderRadius:"6px",overflow:"hidden"}}>
                   <img src={img.url} style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                  <button style={{position:"absolute",top:0,right:0,background:"#000",color:"#fff",border:"none"}} onClick={()=>removeImage(i)}>โ•</button>
+                  <button style={{position:"absolute",top:0,right:0,background:"#000",color:"#fff",border:"none"}} onClick={()=>removeImage(i)}>✕</button>
                 </div>
               ))}
             </div>
           )}
           <div style={{marginTop:"14px"}}>
-            <label style={M.label}>เธเธงเธฒเธกเน€เธฃเนเธงเธเธขเธฑเธเธ เธฒเธ (เธงเธดเธเธฒเธ—เธต / เธฃเธนเธ)</label>
+            <label style={M.label}>ความเร็วขยับภาพ (วินาที / รูป)</label>
             <input style={M.input} type="number" value={secPerImg} onChange={e=>setSecPerImg(Number(e.target.value))} />
-            <label style={M.label}>เธ•เธฑเธงเธญเธฑเธเธฉเธฃเธงเธดเนเธเธเธฒเธ”เธซเธฑเธงเธงเธดเธ”เธตเนเธญ</label>
+            <label style={M.label}>ตัวอักษรวิ่งพาดหัววิดีโอ</label>
             <input style={M.input} value={overlayText} onChange={e=>setOverlayText(e.target.value)} />
           </div>
           <button style={{...M.btnP,opacity:isRendering?0.7:1}} onClick={renderVideo} disabled={isRendering||images.length===0}>
-            {isRendering ? `โณ เธฃเธฐเธเธเธเธณเธฅเธฑเธเธเธฑเธ”เธเธดเธงเน€เธฃเธเน€เธ”เธญเธฃเน... ${progress}%` : "๐ฌ เธเธ”เน€เธฃเธดเนเธกเน€เธฃเธเน€เธ”เธญเธฃเนเธเธฅเธดเธ"}
+            {isRendering ? `⏳ ระบบกำลังจัดคิวเรนเดอร์... ${progress}%` : "🎬 กดเริ่มเรนเดอร์คลิป"}
           </button>
           <canvas ref={canvasRef} style={{display:"none"}} />
         </div>
       )}
       {mode==="upload" && (
         <div style={M.card}>
-          <div style={M.cardT}>๐“ เนเธซเธฅเธ”เนเธเธฅเนเธ—เธตเนเธกเธตเธญเธขเธนเนเนเธฅเนเธงเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ</div>
+          <div style={M.cardT}>📁 โหลดไฟล์ที่มีอยู่แล้วเข้าสู่ระบบ</div>
           <input ref={videoFileInputRef} type="file" accept="video/*" style={{display:"none"}} onChange={handleVideoFile} />
-          <button style={M.btnS} onClick={()=>videoFileInputRef.current?.click()}>๐“ เน€เธฅเธทเธญเธเธเธฅเธดเธเธงเธดเธ”เธตเนเธญ</button>
+          <button style={M.btnS} onClick={()=>videoFileInputRef.current?.click()}>📁 เลือกคลิปวิดีโอ</button>
         </div>
       )}
       {videoUrl && (
         <div style={M.card}>
-          <div style={M.cardT}>๐ฅ เธ•เธฑเธงเธญเธขเนเธฒเธเธงเธดเธ”เธตเนเธญ & เธชเธฑเนเธเธเธฒเธเนเธเธช</div>
+          <div style={M.cardT}>🎥 ตัวอย่างวิดีโอ & สั่งงานโพส</div>
           <video src={videoUrl} controls style={{width:"100%",maxWidth:"220px",display:"block",margin:"0 auto",borderRadius:"10px"}} />
-          <button style={{...M.btnP,marginTop:"14px"}} onClick={shareVideo}>๐“ฒ เธชเธฑเนเธเนเธเธฃเนเนเธเธฅเนเนเธเธขเธฑเธเนเธญเธเธกเธทเธญเธ–เธทเธญ</button>
-          <a href={videoUrl} download={videoFileName} style={{display:"block",textAlign:"center",marginTop:"8px",background:"rgba(255,255,255,0.08)",color:TEXT_MAIN,borderRadius:"10px",padding:"11px",textDecoration:"none",fontSize:"14px",fontWeight:"bold"}}>โฌ๏ธ เธเธฑเธเธ—เธถเธเธฅเธเน€เธเธฃเธทเนเธญเธเธกเธทเธญเธ–เธทเธญ</a>
+          <button style={{...M.btnP,marginTop:"14px"}} onClick={shareVideo}>📲 สั่งแชร์ไฟล์ไปยังแอปมือถือ</button>
+          <a href={videoUrl} download={videoFileName} style={{display:"block",textAlign:"center",marginTop:"8px",background:"rgba(255,255,255,0.08)",color:TEXT_MAIN,borderRadius:"10px",padding:"11px",textDecoration:"none",fontSize:"14px",fontWeight:"bold"}}>⬇️ บันทึกลงเครื่องมือถือ</a>
           {shareMsg && <div style={{marginTop:"10px",fontSize:"12px",background:"#000",padding:"8px",borderRadius:"6px"}}>{shareMsg}</div>}
         </div>
       )}
@@ -675,7 +675,7 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
   );
 }
 
-// โ”€โ”€โ”€ SETTINGS COMPONENT โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── SETTINGS COMPONENT ─────────────────────────────────────
 function SettingsComponent({ M }) {
   const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem("anthropic_api_key") || "");
   const [tiktokSession, setTiktokSession] = useState(() => localStorage.getItem("tiktok_session") || "");
@@ -688,43 +688,43 @@ function SettingsComponent({ M }) {
     localStorage.setItem("tiktok_session", tiktokSession.trim());
     localStorage.setItem("shopee_session", shopeeSession.trim());
     localStorage.setItem("post_delay", delayInput);
-    alert("๐’พ เธเธฑเธเธ—เธถเธเธเธฒเธฃเธ•เธฑเนเธเธเนเธฒเธฃเธฐเธเธเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธงเธเธฃเธฑเธ!");
+    alert("💾 บันทึกการตั้งค่าระบบเรียบร้อยแล้วครับ!");
   };
 
   return (
     <div style={M.card}>
-      <div style={M.cardT}>โ๏ธ เธ•เธฑเนเธเธเนเธฒเธเธตเธขเนเนเธญเธเธเธฅเธดเน€เธเธเธฑเธ & AI</div>
-      <label style={M.label}>Anthropic API Key (เธชเธณเธซเธฃเธฑเธเธฃเธฐเธเธเน€เธเธตเธขเธเนเธเธชเธ•เนเธเธญเธ— AI)</label>
+      <div style={M.cardT}>⚙️ ตั้งค่าคีย์แอปพลิเคชัน & AI</div>
+      <label style={M.label}>Anthropic API Key (สำหรับระบบเขียนโพสต์บอท AI)</label>
       <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} />
 
       <div style={{marginTop:"20px",paddingTop:"20px",borderTop:"1px solid rgba(255,255,255,0.1)"}}>
-        <h3 style={{fontSize:"15px",fontWeight:"600",color:TEXT_MAIN,margin:"0 0 4px"}}>เธ•เธฑเนเธเธเนเธฒเธเธญเธ—เธญเธฑเธเนเธซเธฅเธ” & เธเธนเธเธเธฑเธเธเธต</h3>
-        <p style={{fontSize:"11px",color:TEXT_MUTED,margin:"0 0 12px"}}>เธเธฑเธ”เธเธฒเธฃเธเธตเธขเนเธเธฒเธฃเน€เธเธทเนเธญเธกเธ•เนเธญเนเธฅเธฐเธซเธเนเธงเธเน€เธงเธฅเธฒเธเธฒเธฃเธ—เธณเธเธฒเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธด</p>
+        <h3 style={{fontSize:"15px",fontWeight:"600",color:TEXT_MAIN,margin:"0 0 4px"}}>ตั้งค่าบอทอัปโหลด & ผูกบัญชี</h3>
+        <p style={{fontSize:"11px",color:TEXT_MUTED,margin:"0 0 12px"}}>จัดการคีย์การเชื่อมต่อและหน่วงเวลาการทำงานอัตโนมัติ</p>
 
         <div style={{background:"rgba(238,77,45,0.07)",border:"1px solid rgba(238,77,45,0.2)",borderRadius:"10px",padding:"12px",marginBottom:"10px"}}>
-          <label style={{...M.label,color:SHOPEE_ORANGE,fontWeight:"700"}}>๐งก Shopee Session / Cookie</label>
-          <input type="password" placeholder="เธงเธฒเธ Shopee Session ID เธซเธฃเธทเธญ Cookie เธ—เธตเนเธเธตเน" value={shopeeSession} onChange={e=>setShopeeSession(e.target.value)} style={M.input}/>
+          <label style={{...M.label,color:SHOPEE_ORANGE,fontWeight:"700"}}>🧡 Shopee Session / Cookie</label>
+          <input type="password" placeholder="วาง Shopee Session ID หรือ Cookie ที่นี่" value={shopeeSession} onChange={e=>setShopeeSession(e.target.value)} style={M.input}/>
         </div>
 
         <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"12px",marginBottom:"10px"}}>
-          <label style={{...M.label,color:"#aaa",fontWeight:"700"}}>๐–ค TikTok Session / Cookie</label>
-          <input type="password" placeholder="เธงเธฒเธ TikTok Session ID เธซเธฃเธทเธญ Cookie เธ—เธตเนเธเธตเน" value={tiktokSession} onChange={e=>setTiktokSession(e.target.value)} style={M.input}/>
+          <label style={{...M.label,color:"#aaa",fontWeight:"700"}}>🖤 TikTok Session / Cookie</label>
+          <input type="password" placeholder="วาง TikTok Session ID หรือ Cookie ที่นี่" value={tiktokSession} onChange={e=>setTiktokSession(e.target.value)} style={M.input}/>
         </div>
 
-        <label style={M.label}>เธฃเธฐเธขเธฐเน€เธงเธฅเธฒเธซเธเนเธงเธเธฃเธฐเธซเธงเนเธฒเธเธเธฅเธดเธ (เธงเธดเธเธฒเธ—เธต)</label>
-        <input type="number" min="30" value={delayInput} onChange={e=>setDelayInput(e.target.value)} placeholder="เนเธเธฐเธเธณ 60 เธงเธดเธเธฒเธ—เธตเธเธถเนเธเนเธ" style={M.input}/>
+        <label style={M.label}>ระยะเวลาหน่วงระหว่างคลิป (วินาที)</label>
+        <input type="number" min="30" value={delayInput} onChange={e=>setDelayInput(e.target.value)} placeholder="แนะนำ 60 วินาทีขึ้นไป" style={M.input}/>
 
         <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"14px 0"}}>
           <input type="checkbox" id="autoRetry" checked={autoRetry} onChange={e=>setAutoRetry(e.target.checked)} style={{width:"16px",height:"16px",cursor:"pointer"}}/>
-          <label htmlFor="autoRetry" style={{fontSize:"12px",color:TEXT_MAIN,cursor:"pointer"}}>เน€เธเธดเธ”เนเธเนเธเธฒเธเธฅเธญเธเนเธซเธกเนเธญเธฑเธ•เนเธเธกเธฑเธ•เธด (Auto-Retry) เน€เธกเธทเนเธญเธเธญเธ—เธญเธฑเธเนเธซเธฅเธ”เธเธฑเธเธซเธฃเธทเธญเธซเธฅเธธเธ”เธเธดเธง</label>
+          <label htmlFor="autoRetry" style={{fontSize:"12px",color:TEXT_MAIN,cursor:"pointer"}}>เปิดใช้งานลองใหม่อัตโนมัติ (Auto-Retry) เมื่อบอทอัปโหลดพังหรือหลุดคิว</label>
         </div>
       </div>
-      <button style={M.btnP} onClick={saveSettings}>๐’พ เธเธฑเธเธ—เธถเธเธเธฒเธฃเธ•เธฑเนเธเธเนเธฒเธ—เธฑเนเธเธซเธกเธ”</button>
+      <button style={M.btnP} onClick={saveSettings}>💾 บันทึกการตั้งค่าทั้งหมด</button>
     </div>
   );
 }
 
-// โ”€โ”€โ”€ VIDEO QUEUE MANAGER โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── VIDEO QUEUE MANAGER ─────────────────────────────────────
 function VideoQueueManager({ M, platform }) {
   const [queueTab, setQueueTab] = useState(platform || "shopee");
   const [shopeeItems, setShopeeItems] = useState([
@@ -739,7 +739,7 @@ function VideoQueueManager({ M, platform }) {
   const videoRefs = useRef({});
 
   const addItem = () => {
-    if (items.length >= 10) return alert("เน€เธเธดเนเธกเนเธ”เนเธชเธนเธเธชเธธเธ” 10 เธฃเธฒเธขเธเธฒเธฃเธเธฃเธฑเธ");
+    if (items.length >= 10) return alert("เพิ่มได้สูงสุด 10 รายการครับ");
     setItems(prev => [...prev, { id: Date.now(), videoFile: null, videoName: "", caption: "", status: "ready", queue: false, errorImg: "" }]);
   };
 
@@ -757,7 +757,7 @@ function VideoQueueManager({ M, platform }) {
   const toggleQueue = (id) => {
     setItems(prev => prev.map(i => {
       if (i.id !== id) return i;
-      if (!i.videoName) { alert("เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเธเธฅเธดเธเธงเธดเธ”เธตเนเธญเธเนเธญเธเธเธฃเธฑเธ"); return i; }
+      if (!i.videoName) { alert("กรุณาเลือกคลิปวิดีโอก่อนครับ"); return i; }
       return { ...i, queue: !i.queue, status: !i.queue ? "queued" : "ready" };
     }));
   };
@@ -765,22 +765,22 @@ function VideoQueueManager({ M, platform }) {
   const queueAll = () => { setItems(prev => prev.map(i => i.videoName ? { ...i, queue: true, status: "queued" } : i)); };
 
   const platformColor = queueTab === "shopee" ? SHOPEE_RED : "#333";
-  const platformLabel = queueTab === "shopee" ? "๐งก Shopee" : "๐–ค TikTok";
+  const platformLabel = queueTab === "shopee" ? "🧡 Shopee" : "🖤 TikTok";
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
 
       <div style={{display:"flex",background:"rgba(255,255,255,0.04)",padding:"4px",borderRadius:"12px",border:"1px solid rgba(255,255,255,0.08)"}}>
         <button onClick={()=>setQueueTab("shopee")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="shopee"?SHOPEE_RED:"transparent",color:"#fff"}}>
-          ๐งก เธเธดเธง Shopee ({shopeeItems.filter(i=>i.queue).length}/{shopeeItems.length})
+          🧡 คิว Shopee ({shopeeItems.filter(i=>i.queue).length}/{shopeeItems.length})
         </button>
         <button onClick={()=>setQueueTab("tiktok")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="tiktok"?"#222":"transparent",color:"#fff"}}>
-          ๐–ค เธเธดเธง TikTok ({tiktokItems.filter(i=>i.queue).length}/{tiktokItems.length})
+          🖤 คิว TikTok ({tiktokItems.filter(i=>i.queue).length}/{tiktokItems.length})
         </button>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}}>
-        {[["๐“ เธ—เธฑเนเธเธซเธกเธ”",items.length,TEXT_MUTED],["โณ เนเธเธเธดเธง",items.filter(i=>i.queue).length,SHOPEE_ORANGE],["โ… เธเธฃเนเธญเธก",items.filter(i=>!i.queue&&i.status==="ready").length,GREEN]].map(([label,val,color])=>(
+        {[["📋 ทั้งหมด",items.length,TEXT_MUTED],["⏳ ในคิว",items.filter(i=>i.queue).length,SHOPEE_ORANGE],["✅ พร้อม",items.filter(i=>!i.queue&&i.status==="ready").length,GREEN]].map(([label,val,color])=>(
           <div key={label} style={{background:"rgba(255,255,255,0.04)",borderRadius:"10px",padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,0.07)"}}>
             <div style={{fontSize:"20px",fontWeight:"800",color}}>{val}</div>
             <div style={{fontSize:"10px",color:TEXT_MUTED}}>{label}</div>
@@ -791,11 +791,11 @@ function VideoQueueManager({ M, platform }) {
       <div style={{display:"flex",gap:"8px"}}>
         <button onClick={addItem} disabled={items.length>=10}
           style={{flex:1,padding:"9px",borderRadius:"10px",border:`2px dashed ${platformColor}`,background:"transparent",color:platformColor,fontSize:"13px",fontWeight:"bold",cursor:"pointer",opacity:items.length>=10?0.4:1}}>
-          โ• เน€เธเธดเนเธกเธฃเธฒเธขเธเธฒเธฃ ({items.length}/10)
+          ➕ เพิ่มรายการ ({items.length}/10)
         </button>
         <button onClick={queueAll}
           style={{flex:1,padding:"9px",borderRadius:"10px",border:"none",background:platformColor,color:"#fff",fontSize:"13px",fontWeight:"bold",cursor:"pointer"}}>
-          <Layers size={13} style={{display:"inline",marginRight:4}}/>เธชเนเธเธ—เธฑเนเธเธซเธกเธ”เน€เธเนเธฒเธเธดเธง
+          <Layers size={13} style={{display:"inline",marginRight:4}}/>ส่งทั้งหมดเข้าคิว
         </button>
       </div>
 
@@ -803,18 +803,18 @@ function VideoQueueManager({ M, platform }) {
         <div key={item.id} style={{background:BG_CARD,borderRadius:"14px",padding:"14px",border:`1px solid ${item.queue?"rgba(245,166,35,0.4)":"rgba(255,255,255,0.07)"}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
             <div style={{fontSize:"13px",fontWeight:"700",color:item.queue?SHOPEE_ORANGE:TEXT_MAIN}}>
-              {item.queue?"โณ":"๐“"} เธฃเธฒเธขเธเธฒเธฃเธ—เธตเน {idx+1}
-              {item.queue && <span style={{fontSize:"10px",marginLeft:"6px",color:SHOPEE_ORANGE}}>(เธญเธขเธนเนเนเธเธเธดเธง)</span>}
+              {item.queue?"⏳":"📋"} รายการที่ {idx+1}
+              {item.queue && <span style={{fontSize:"10px",marginLeft:"6px",color:SHOPEE_ORANGE}}>(อยู่ในคิว)</span>}
             </div>
             <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
               {item.status==="failed" && (
-                <button onClick={()=>alert(`URL เธฃเธนเธเธเธฑเธ: ${item.errorImg}`)}
+                <button onClick={()=>alert(`URL รูปพัง: ${item.errorImg}`)}
                   style={{display:"flex",alignItems:"center",gap:"2px",background:"rgba(238,77,45,0.2)",color:"#FF8B8B",border:"1px solid rgba(238,77,45,0.4)",borderRadius:"4px",padding:"3px 7px",fontSize:"11px",cursor:"pointer"}}>
-                  <Eye size={11}/> เธ”เธนเธฃเธนเธเธเธฑเธ
+                  <Eye size={11}/> ดูรูปพัง
                 </button>
               )}
               {items.length > 1 && (
-                <button onClick={()=>removeItem(item.id)} style={{background:"rgba(231,76,60,0.15)",border:"none",color:"#e74c3c",borderRadius:"6px",padding:"3px 8px",fontSize:"12px",cursor:"pointer"}}>โ• เธฅเธ</button>
+                <button onClick={()=>removeItem(item.id)} style={{background:"rgba(231,76,60,0.15)",border:"none",color:"#e74c3c",borderRadius:"6px",padding:"3px 8px",fontSize:"12px",cursor:"pointer"}}>✕ ลบ</button>
               )}
             </div>
           </div>
@@ -822,11 +822,11 @@ function VideoQueueManager({ M, platform }) {
           <input ref={el=>videoRefs.current[item.id]=el} type="file" accept="video/*" style={{display:"none"}} onChange={e=>handleVideoSelect(item.id,e)}/>
           <button onClick={()=>videoRefs.current[item.id]?.click()}
             style={{width:"100%",padding:"9px",borderRadius:"8px",border:`1px dashed ${item.videoName?"rgba(39,174,96,0.5)":"rgba(255,255,255,0.15)"}`,background:item.videoName?"rgba(39,174,96,0.07)":"rgba(255,255,255,0.03)",color:item.videoName?GREEN:TEXT_MUTED,fontSize:"12px",cursor:"pointer",marginBottom:"8px",textAlign:"left"}}>
-            {item.videoName ? `๐ฌ ${item.videoName}` : "๐“ เธเธ”เน€เธฅเธทเธญเธเนเธเธฅเนเธงเธดเธ”เธตเนเธญ..."}
+            {item.videoName ? `🎬 ${item.videoName}` : "📁 กดเลือกไฟล์วิดีโอ..."}
           </button>
 
           <textarea
-            placeholder="เธเธดเธกเธเนเธซเธฃเธทเธญเธงเธฒเธเนเธเธเธเธฑเนเธเธชเธณเธซเธฃเธฑเธเธเธฅเธดเธเธเธตเน..."
+            placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..."
             value={item.caption}
             onChange={e=>updateItem(item.id,"caption",e.target.value)}
             rows={3}
@@ -836,8 +836,8 @@ function VideoQueueManager({ M, platform }) {
           <button onClick={()=>toggleQueue(item.id)}
             style={{width:"100%",padding:"8px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",color:"#fff",background:item.queue?"#D35400":item.videoName?GREEN:"rgba(255,255,255,0.1)"}}>
             {item.queue
-              ? <><ArrowLeft size={12} style={{display:"inline",marginRight:4}}/>เธ”เธถเธเธญเธญเธเธเธฒเธเธเธดเธง</>
-              : <>เธชเนเธเน€เธเนเธฒเธเธดเธง {platformLabel} <ArrowRight size={12} style={{display:"inline",marginLeft:4}}/></>}
+              ? <><ArrowLeft size={12} style={{display:"inline",marginRight:4}}/>ดึงออกจากคิว</>
+              : <>ส่งเข้าคิว {platformLabel} <ArrowRight size={12} style={{display:"inline",marginLeft:4}}/></>}
           </button>
         </div>
       ))}
@@ -845,13 +845,13 @@ function VideoQueueManager({ M, platform }) {
   );
 }
 
-// โ”€โ”€โ”€ UTILS โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// ─── UTILS ──────────────────────────────────────────────────
 function ResultBox({ text, id, copied, onCopy }) {
   return (
     <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"13px",lineHeight:"1.7",whiteSpace:"pre-wrap",color:TEXT_MAIN,marginTop:"10px",border:"1px solid rgba(255,255,255,0.07)",position:"relative"}}>
       {text}
       <button style={{position:"absolute",top:"10px",right:"10px",background:copied===id?"#27AE60":"rgba(255,255,255,0.1)",border:"none",borderRadius:"6px",padding:"4px 10px",color:"#fff",fontSize:"12px",cursor:"pointer"}}
-        onClick={()=>onCopy(text,id)}>{copied===id?"โ“":"เธเธฑเธ”เธฅเธญเธ"}</button>
+        onClick={()=>onCopy(text,id)}>{copied===id?"✓":"คัดลอก"}</button>
     </div>
   );
 }
