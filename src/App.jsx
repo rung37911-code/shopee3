@@ -1050,54 +1050,212 @@ function VideoQueueManager({ M, licKey, expired, product, price, link, captionTm
                 <td style={{padding: "12px", textAlign: "center"}}>
                   <div style={{display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"}}>
                     <span style={{
-                      padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold",
-                      background: log.status === 'queued' ? "rgba(245,166,35,0.15)" : log.status === 'failed' ? "rgba(238,77,45,0.15)" : "rgba(255,255,255,0.1)",
-                      color: log.status === 'queued' ? SHOPEE_ORANGE : log.status === 'failed' ? "#FF6B6B" : TEXT_MUTED
-                    }}>
-                      {log.status === 'queued' ? 'อยู่ในคิว' : log.status === 'failed' ? 'บอทพัง' : 'เตรียมพร้อม'}
-                    </span>
+// ─── 2. COMPONENT ตั้งค่าระบบ (SETTINGS) ───────────────────────
+function SettingsComponent({ M, BG_CARD }) {
+  const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem("anthropic_api_key") || "");
+  const [tiktokSession, setTiktokSession] = useState(() => localStorage.getItem("tiktok_session") || "");
+  const [shopeeSession, setShopeeSession] = useState(() => localStorage.getItem("shopee_session") || "");
+  const [delayInput, setDelayInput] = useState(() => localStorage.getItem("post_delay") || "60");
+  const [autoRetry, setAutoRetry] = useState(true);
 
-                    {/* ปุ่มดูรูปตอนพัง: จะยอมให้ปุ่มนี้แสดงผลขึ้นมาเฉพาะ log.status === 'failed' เท่านั้น */}
-                    {log.status === 'failed' && (
-                      <button 
-                        onClick={() => alert(`📦 ภาพบันทึกหน้าจอตอนบอททำงานพลาด:\n\nURL แหล่งเก็บ: ${log.errorImg}`)}
-                        style={{display: "flex", alignItems: "center", gap: "2px", background: "rgba(238,77,45,0.2)", color: "#FF8B8B", border: "1px solid rgba(238,77,45,0.4)", borderRadius: "4px", padding: "2px 6px", fontSize: "11px", cursor: "pointer"}}
-                      >
-                        <Eye size={12} /> ดูรูปพัง
-                      </button>
-                    )}
-                  </div>
-                </td>
+  const saveSettings = () => {
+    localStorage.setItem("anthropic_api_key", apiKeyInput.trim());
+    localStorage.setItem("tiktok_session", tiktokSession.trim());
+    localStorage.setItem("shopee_session", shopeeSession.trim());
+    localStorage.setItem("post_delay", delayInput);
+    alert("💾 บันทึกการตั้งค่าระบบเรียบร้อยแล้วครับ!");
+  };
 
-                {/* 🔵 คอลัมน์ส่งเข้าคิวงาน / ดึงกลับที่คอลัมน์สุดท้าย */}
-                <td style={{padding: "12px", textAlign: "right"}}>
-                  <button
-                    onClick={() => toggleQueue(log.id)}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "bold", padding: "5px 10px", borderRadius: "6px", border: "none", cursor: "pointer", color: "#fff",
-                      background: log.queue ? "#D35400" : GREEN
-                    }}
-                  >
-                    {log.queue ? (
-                      <>
-                        <ArrowLeft size={12} /> ดึงกลับ
-                      </>
-                    ) : (
-                      <>
-                        ส่งเข้าคิว <ArrowRight size={12} />
-                      </>
-                    )}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  return (
+    <div style={M.card}>
+      <div style={M.cardT}>⚙️ ตั้งค่าคีย์แอปพลิเคชัน & AI</div>
+      <label style={M.label}>Anthropic API Key (สำหรับระบบเขียนโพสต์บอท AI)</label>
+      <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} />
+
+      <div style={{marginTop:"20px",paddingTop:"20px",borderTop:"1px solid rgba(255,255,255,0.1)"}}>
+        <h3 style={{fontSize:"15px",fontWeight:"600",color:TEXT_MAIN,margin:"0 0 4px"}}>ตั้งค่าบอทอัปโหลด & ผูกบัญชี</h3>
+        <p style={{fontSize:"11px",color:TEXT_MUTED,margin:"0 0 12px"}}>จัดการคีย์การเชื่อมต่อและหน่วงเวลาการทำงานอัตโนมัติ</p>
+
+        {/* 🧡 Shopee Session */}
+        <div style={{background:"rgba(238,77,45,0.07)",border:"1px solid rgba(238,77,45,0.2)",borderRadius:"10px",padding:"12px",marginBottom:"10px"}}>
+          <label style={{...M.label,color:SHOPEE_ORANGE,fontWeight:"700"}}>🧡 Shopee Session / Cookie</label>
+          <input type="password" placeholder="วาง Shopee Session ID หรือ Cookie ที่นี่" value={shopeeSession} onChange={e=>setShopeeSession(e.target.value)} style={M.input}/>
+        </div>
+
+        {/* 🖤 TikTok Session */}
+        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"12px",marginBottom:"10px"}}>
+          <label style={{...M.label,color:"#aaa",fontWeight:"700"}}>🖤 TikTok Session / Cookie</label>
+          <input type="password" placeholder="วาง TikTok Session ID หรือ Cookie ที่นี่" value={tiktokSession} onChange={e=>setTiktokSession(e.target.value)} style={M.input}/>
+        </div>
+
+        <label style={M.label}>ระยะเวลาหน่วงระหว่างคลิป (วินาที)</label>
+        <input type="number" min="30" value={delayInput} onChange={e=>setDelayInput(e.target.value)} placeholder="แนะนำ 60 วินาทีขึ้นไป" style={M.input}/>
+
+        <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"14px 0"}}>
+          <input type="checkbox" id="autoRetry" checked={autoRetry} onChange={e=>setAutoRetry(e.target.checked)} style={{width:"16px",height:"16px",cursor:"pointer"}}/>
+          <label htmlFor="autoRetry" style={{fontSize:"12px",color:TEXT_MAIN,cursor:"pointer"}}>
+            เปิดใช้งานลองใหม่อัตโนมัติ (Auto-Retry) เมื่อบอทอัปโหลดพังหรือหลุดคิว
+          </label>
+        </div>
       </div>
+      <button style={M.btnP} onClick={saveSettings}>💾 บันทึกการตั้งค่าทั้งหมด</button>
     </div>
   );
 }
 
+// ─── 3. COMPONENT คิวงาน แยก Shopee/TikTok + จับคู่คลิป+แคปชั่น ───
+function VideoQueueManager({ M, licKey, expired, platform }) {
+  const [queueTab, setQueueTab] = useState(platform || "shopee");
+
+  // State คิวแยกแต่ละแพลตฟอร์ม
+  const [shopeeItems, setShopeeItems] = useState([
+    { id: 1, videoFile: null, videoName: "", caption: "", status: "ready", queue: false, errorImg: "" },
+  ]);
+  const [tiktokItems, setTiktokItems] = useState([
+    { id: 1, videoFile: null, videoName: "", caption: "", status: "ready", queue: false, errorImg: "" },
+  ]);
+
+  const items = queueTab === "shopee" ? shopeeItems : tiktokItems;
+  const setItems = queueTab === "shopee" ? setShopeeItems : setTiktokItems;
+
+  const videoRefs = useRef({});
+
+  // เพิ่มรายการใหม่ (สูงสุด 10)
+  const addItem = () => {
+    if (items.length >= 10) return alert("เพิ่มได้สูงสุด 10 รายการครับ");
+    const newId = Date.now();
+    setItems(prev => [...prev, { id: newId, videoFile: null, videoName: "", caption: "", status: "ready", queue: false, errorImg: "" }]);
+  };
+
+  // ลบรายการ
+  const removeItem = (id) => {
+    if (items.length <= 1) return;
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  // อัปเดตฟิลด์
+  const updateItem = (id, field, value) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+  };
+
+  // เลือกไฟล์วิดีโอ
+  const handleVideoSelect = (id, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    updateItem(id, "videoFile", file);
+    updateItem(id, "videoName", file.name);
+  };
+
+  // ส่งเข้าคิว / ดึงกลับ
+  const toggleQueue = (id) => {
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      if (!i.videoName) { alert("กรุณาเลือกคลิปวิดีโอก่อนครับ"); return i; }
+      return { ...i, queue: !i.queue, status: !i.queue ? "queued" : "ready" };
+    }));
+  };
+
+  // ส่งทั้งหมดเข้าคิว
+  const queueAll = () => {
+    setItems(prev => prev.map(i => i.videoName ? { ...i, queue: true, status: "queued" } : i));
+  };
+
+  const platformColor = queueTab === "shopee" ? SHOPEE_RED : "#333";
+  const platformLabel = queueTab === "shopee" ? "🧡 Shopee" : "🖤 TikTok";
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+
+      {/* แท็บสลับแพลตฟอร์ม */}
+      <div style={{display:"flex",background:"rgba(255,255,255,0.04)",padding:"4px",borderRadius:"12px",border:"1px solid rgba(255,255,255,0.08)"}}>
+        <button onClick={()=>setQueueTab("shopee")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="shopee"?SHOPEE_RED:"transparent",color:"#fff"}}>
+          🧡 คิว Shopee ({shopeeItems.filter(i=>i.queue).length}/{shopeeItems.length})
+        </button>
+        <button onClick={()=>setQueueTab("tiktok")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="tiktok"?"#222":"transparent",color:"#fff"}}>
+          🖤 คิว TikTok ({tiktokItems.filter(i=>i.queue).length}/{tiktokItems.length})
+        </button>
+      </div>
+
+      {/* แถบสถิติ */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}}>
+        {[
+          ["📋 ทั้งหมด", items.length, TEXT_MUTED],
+          ["⏳ ในคิว", items.filter(i=>i.queue).length, SHOPEE_ORANGE],
+          ["✅ เตรียมพร้อม", items.filter(i=>!i.queue&&i.status==="ready").length, GREEN],
+        ].map(([label,val,color])=>(
+          <div key={label} style={{background:"rgba(255,255,255,0.04)",borderRadius:"10px",padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,0.07)"}}>
+            <div style={{fontSize:"20px",fontWeight:"800",color}}>{val}</div>
+            <div style={{fontSize:"10px",color:TEXT_MUTED}}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ปุ่มควบคุม */}
+      <div style={{display:"flex",gap:"8px"}}>
+        <button onClick={addItem} disabled={items.length>=10}
+          style={{flex:1,padding:"9px",borderRadius:"10px",border:`2px dashed ${platformColor}`,background:"transparent",color:platformColor,fontSize:"13px",fontWeight:"bold",cursor:"pointer",opacity:items.length>=10?0.4:1}}>
+          ➕ เพิ่มรายการ ({items.length}/10)
+        </button>
+        <button onClick={queueAll}
+          style={{flex:1,padding:"9px",borderRadius:"10px",border:"none",background:platformColor,color:"#fff",fontSize:"13px",fontWeight:"bold",cursor:"pointer"}}>
+          <Layers size={13} style={{display:"inline",marginRight:4}}/>ส่งทั้งหมดเข้าคิว
+        </button>
+      </div>
+
+      {/* รายการคลิป + แคปชั่น */}
+      {items.map((item, idx) => (
+        <div key={item.id} style={{background:BG_CARD,borderRadius:"14px",padding:"14px",border:`1px solid ${item.queue?"rgba(245,166,35,0.4)":"rgba(255,255,255,0.07)"}`}}>
+          
+          {/* หัวข้อแถว */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",color:item.queue?SHOPEE_ORANGE:TEXT_MAIN}}>
+              {item.queue ? "⏳" : "📋"} รายการที่ {idx+1}
+              {item.queue && <span style={{fontSize:"10px",marginLeft:"6px",color:SHOPEE_ORANGE}}>(อยู่ในคิว)</span>}
+            </div>
+            <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+              {item.status==="failed" && (
+                <button onClick={()=>alert(`URL รูปพัง: ${item.errorImg}`)}
+                  style={{display:"flex",alignItems:"center",gap:"2px",background:"rgba(238,77,45,0.2)",color:"#FF8B8B",border:"1px solid rgba(238,77,45,0.4)",borderRadius:"4px",padding:"3px 7px",fontSize:"11px",cursor:"pointer"}}>
+                  <Eye size={11}/> ดูรูปพัง
+                </button>
+              )}
+              {items.length > 1 && (
+                <button onClick={()=>removeItem(item.id)}
+                  style={{background:"rgba(231,76,60,0.15)",border:"none",color:"#e74c3c",borderRadius:"6px",padding:"3px 8px",fontSize:"12px",cursor:"pointer"}}>
+                  ✕ ลบ
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* เลือกคลิปวิดีโอ */}
+          <input ref={el=>videoRefs.current[item.id]=el} type="file" accept="video/*" style={{display:"none"}}
+            onChange={e=>handleVideoSelect(item.id,e)}/>
+          <button onClick={()=>videoRefs.current[item.id]?.click()}
+            style={{width:"100%",padding:"9px",borderRadius:"8px",border:`1px dashed ${item.videoName?"rgba(39,174,96,0.5)":"rgba(255,255,255,0.15)"}`,background:item.videoName?"rgba(39,174,96,0.07)":"rgba(255,255,255,0.03)",color:item.videoName?GREEN:TEXT_MUTED,fontSize:"12px",cursor:"pointer",marginBottom:"8px",textAlign:"left"}}>
+            {item.videoName ? `🎬 ${item.videoName}` : "📁 กดเลือกไฟล์วิดีโอ..."}
+          </button>
+
+          {/* แคปชั่น */}
+          <textarea
+            placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..."
+            value={item.caption}
+            onChange={e=>updateItem(item.id,"caption",e.target.value)}
+            rows={3}
+            style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"9px 12px",color:TEXT_MAIN,fontSize:"12px",outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif",marginBottom:"8px"}}
+          />
+
+          {/* ปุ่มส่งเข้าคิว */}
+          <button onClick={()=>toggleQueue(item.id)}
+            style={{width:"100%",padding:"8px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",color:"#fff",
+              background:item.queue?"#D35400":item.videoName?GREEN:"rgba(255,255,255,0.1)"}}>
+            {item.queue ? <><ArrowLeft size={12} style={{display:"inline",marginRight:4}}/>ดึงออกจากคิว</> : <>ส่งเข้าคิว {platformLabel} <ArrowRight size={12} style={{display:"inline",marginLeft:4}}/></>}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+            }
 // ─── UTILS COMPONENTS ───────────────────────────────────────
 function ResultBox({ text, id, copied, onCopy }) {
   return (
