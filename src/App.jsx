@@ -109,7 +109,7 @@ function LoginScreen({ onSuccess }) {
       <div style={S.logoWrap}><div style={{fontSize:"40px"}}>🚀</div><div style={S.logoText}>ClipAI<span style={{color:SHOPEE_ORANGE}}>Master</span></div><div style={S.logoSub}>ระบบสร้างคลิปปักตะกร้า + แคปชั่น อัตโนมัติ (Shopee & TikTok)</div></div>
       <div style={S.tabRow}><button style={S.tab(mode==="user")} onClick={()=>{setMode("user");setErr("");}}>🔑 เข้าใช้งาน</button><button style={S.tab(mode==="admin")} onClick={()=>{setMode("admin");setErr("");}}>⚙️ Admin</button></div>
       {mode==="user"?(<><label style={S.label}>License Key</label><input style={S.input} placeholder="SCL-MO-XXXXXXXX" value={keyVal} onChange={e=>setKeyVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doUserLogin()} /><div style={S.hint}>* Key ได้รับจากผู้ขาย</div><div style={{fontSize:"12px",color:SHOPEE_ORANGE,marginBottom:"12px",cursor:"pointer"}} onClick={()=>setKeyVal(DEMO_KEY)}>🧪 กดเพื่อใส่ Demo Key ทดสอบ</div>{err&&<div style={S.err}>{err}</div>}<button style={S.btn} onClick={doUserLogin} disabled={loading}>{loading?"กำลังตรวจสอบ...":"เข้าใช้งาน →"}</button></>):(<><label style={S.label}>รหัสผ่าน Admin</label><input style={S.input} type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAdminLogin()} />{err&&<div style={S.err}>{err}</div>}<button style={S.btn} onClick={doAdminLogin}>เข้า Admin Panel →</button></>)}
-      <div style={{textAlign:"center",marginTop:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>ClipAIMaster v2.7 • Dual Platform Support</div>
+      <div style={{textAlign:"center",marginTop:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)"}}>ClipAIMaster v2.8 • Dual Platform Support</div>
     </div></div>
   );
 }
@@ -231,8 +231,8 @@ function MainApp({ sess, onLogout }) {
   const [copied, setCopied] = useState("");
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [botStatus, setBotStatus] = useState("Idle");
-  const [shopeeItems, setShopeeItems] = useState([{ id:"init-1", videoFile:null, videoName:"", caption:"", status:"ready", queue:false, errorImg:"" }]);
-  const [tiktokItems, setTiktokItems] = useState([{ id:"init-2", videoFile:null, videoName:"", caption:"", status:"ready", queue:false, errorImg:"" }]);
+  const [shopeeItems, setShopeeItems] = useState([{ id:"init-1", videoFile:null, videoName:"", caption:"", link:"", status:"ready", queue:false, errorImg:"" }]);
+  const [tiktokItems, setTiktokItems] = useState([{ id:"init-2", videoFile:null, videoName:"", caption:"", link:"", status:"ready", queue:false, errorImg:"" }]);
   const expired = isExpired(keyInfo||{});
   const dl = daysLeft(keyInfo?.expiresAt);
   const handleToggleBot = () => {
@@ -260,32 +260,34 @@ function MainApp({ sess, onLogout }) {
   const genAI = () => callAI(`คุณเป็น Social Media Copywriter เชี่ยวชาญขายของออนไลน์ บนแพลตฟอร์ม ${platform.toUpperCase()}\nสร้างแคปชั่นปักตะกร้าสำหรับ:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}${link?`- ลิงก์: ${link}\n`:""}\nให้มี: Hook ดึงดูด, ภาษาไทยสนุก, Emoji, วิธีสั่งซื้อ, แฮชแท็ก 5-8 อัน\nตอบด้วยแคปชั่นเท่านั้น`,setCaptionAi,setAiLoading);
   const genScript = () => callAI(`สร้างสคริปต์คลิปสั้น ${platform.toUpperCase()} ปักตะกร้า:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}\n[0-3 วิ] HOOK:\n[3-10 วิ] รีวิว:\n[10-20 วิ] จุดว้าว:\n[20-30 วิ] ปิดการขาย:\nใช้ภาษาไทยสไตล์อินฟลูเอนเซอร์`,setScript,setScriptLoading);
 
+  // แก้ไข: copyAndSendToQueue ส่งแคปชั่นและลิงก์แยกกัน ไม่รวม
   const copyAndSendToQueue = (text,id) => {
     navigator.clipboard.writeText(text);
     setCopied(id); setTimeout(()=>setCopied(""),2000);
-    const fullCaption = link ? `${text}\n\n${link}` : text;
     const setItems = platform==="shopee" ? setShopeeItems : setTiktokItems;
     setItems(prev => {
       const hasEmpty = prev.find(i=>!i.caption);
-      if (hasEmpty) return prev.map(i=>i.id===hasEmpty.id?{...i,caption:fullCaption}:i);
-      if (prev.length<10) return [...prev,{id:`q-${Date.now()}`,videoFile:null,videoName:"",caption:fullCaption,status:"ready",queue:false,errorImg:""}];
+      if (hasEmpty) return prev.map(i=>i.id===hasEmpty.id?{...i,caption:text,link:link||""}:i);
+      if (prev.length<10) return [...prev,{id:`q-${Date.now()}`,videoFile:null,videoName:"",caption:text,link:link||"",status:"ready",queue:false,errorImg:""}];
       return prev;
     });
   };
 
+  // แก้ไข: sendVideoToQueue ไม่ลบแคปชั่นที่มีอยู่
   const sendVideoToQueue = async (blob,fileName) => {
     const setItems = platform==="shopee" ? setShopeeItems : setTiktokItems;
     let newId = `q-${Date.now()}`;
     if (isSupabaseConfigured) {
       try {
-        const { data } = await supabase.from("tasks").insert({ user_key:licKey, platform, video_name:fileName, caption:"", status:"ready", queue:false }).select().single();
+        const { data } = await supabase.from("tasks").insert({ user_key:licKey, platform, video_name:fileName, caption:"", link:"", status:"ready", queue:false }).select().single();
         if (data) newId = data.id;
       } catch {}
     }
     setItems(prev => {
-      const hasEmpty = prev.find(i=>!i.videoName);
-      if (hasEmpty) return prev.map(i=>i.id===hasEmpty.id?{...i,videoFile:blob,videoName:fileName,id:newId}:i);
-      if (prev.length<10) return [...prev,{id:newId,videoFile:blob,videoName:fileName,caption:"",status:"ready",queue:false,errorImg:""}];
+      // หา slot ที่ไม่มีวิดีโอ — ไม่แตะ caption ที่มีอยู่แล้ว
+      const hasEmptyVideo = prev.find(i=>!i.videoName);
+      if (hasEmptyVideo) return prev.map(i=>i.id===hasEmptyVideo.id?{...i,videoFile:blob,videoName:fileName,id:newId}:i);
+      if (prev.length<10) return [...prev,{id:newId,videoFile:blob,videoName:fileName,caption:"",link:"",status:"ready",queue:false,errorImg:""}];
       return prev;
     });
     setPage("queue");
@@ -335,7 +337,14 @@ function MainApp({ sess, onLogout }) {
                   if(!product||!price){alert("กรุณากรอกชื่อสินค้าและราคาก่อนส่งเข้าคิวครับ");return;}
                   try{
                     const finalCaption=activeTab==="template"?captionTmpl:captionAi;
-                    const{error}=await supabase.from("tasks").insert([{platform,video_path:link||"",caption:finalCaption,product_name:product,status:"pending"}]);
+                    const{error}=await supabase.from("tasks").insert([{
+                      platform, user_key:licKey,
+                      video_path:link||"",   // ใช้ video_path เก็บลิงก์สินค้า
+                      link:link||"",         // เก็บลิงก์ในคอลัมน์ link ด้วย
+                      caption:finalCaption,
+                      product_name:product,
+                      status:"pending"
+                    }]);
                     if(error)throw error;
                     alert("ส่งข้อมูลสินค้าและแคปชั่นเข้าคิวสำเร็จ! บอทในมือถือดึงงานไปโพสต์ได้แล้วครับ");
                   }catch(err){alert("ส่งข้อมูลเข้าคิวล้มเหลว: "+err.message);}
@@ -579,15 +588,22 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
   const items = queueTab==="shopee"?shopeeItems:tiktokItems;
   const setItems = queueTab==="shopee"?setShopeeItems:setTiktokItems;
 
-  // โหลดจาก Supabase
   useEffect(()=>{ loadFromDB(queueTab); },[queueTab]);
+
   const loadFromDB = async (plat) => {
     if (!isSupabaseConfigured) return;
     setDbLoading(true);
     try {
-      const { data, error } = await supabase.from("tasks").select("*").eq("user_key",licKey).eq("platform",plat).order("created_at",{ascending:true});
+      // แก้ไข: โหลดทุก status ไม่กรองเฉพาะ ready
+      const { data, error } = await supabase.from("tasks").select("*")
+        .eq("user_key",licKey).eq("platform",plat)
+        .order("created_at",{ascending:true});
       if (!error && data && data.length > 0) {
-        const mapped = data.map(row=>({ id:row.id, videoName:row.video_name||"", caption:row.caption||"", status:row.status||"ready", queue:row.queue||false, errorImg:row.error_img||"", videoFile:null }));
+        const mapped = data.map(row=>({
+          id:row.id, videoName:row.video_name||"", caption:row.caption||"",
+          link:row.link||"", status:row.status||"ready",
+          queue:row.queue||false, errorImg:row.error_img||"", videoFile:null
+        }));
         if (plat==="shopee") setShopeeItems(mapped); else setTiktokItems(mapped);
       }
     } catch {}
@@ -599,11 +615,11 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
     let newId = `local-${Date.now()}`;
     if (isSupabaseConfigured) {
       try {
-        const { data } = await supabase.from("tasks").insert({ user_key:licKey, platform:queueTab, video_name:"", caption:"", status:"ready", queue:false }).select().single();
+        const { data } = await supabase.from("tasks").insert({ user_key:licKey, platform:queueTab, video_name:"", caption:"", link:"", status:"ready", queue:false }).select().single();
         if (data) newId = data.id;
       } catch {}
     }
-    setItems(prev=>[...prev,{id:newId,videoFile:null,videoName:"",caption:"",status:"ready",queue:false,errorImg:""}]);
+    setItems(prev=>[...prev,{id:newId,videoFile:null,videoName:"",caption:"",link:"",status:"ready",queue:false,errorImg:""}]);
   };
 
   const removeItem = async (id) => {
@@ -616,10 +632,15 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
 
   const saveItemToDB = async (id) => {
     if (!isSupabaseConfigured) return;
-    const item = (queueTab==="shopee"?shopeeItems:tiktokItems).find(i=>i.id===id);
+    const allItems = queueTab==="shopee"?shopeeItems:tiktokItems;
+    const item = allItems.find(i=>i.id===id);
     if (!item) return;
     try {
-      await supabase.from("tasks").update({ caption:item.caption, video_name:item.videoName, status:item.status, queue:item.queue, updated_at:new Date().toISOString() }).eq("id",id);
+      await supabase.from("tasks").update({
+        caption:item.caption, link:item.link||"",
+        video_name:item.videoName, status:item.status,
+        queue:item.queue, updated_at:new Date().toISOString()
+      }).eq("id",id);
     } catch {}
   };
 
@@ -652,7 +673,7 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
     try {
       const file=item.videoFile instanceof File?item.videoFile:new File([item.videoFile],item.videoName,{type:"video/webm"});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:"ClipAI Post",text:item.caption});
+        await navigator.share({files:[file],title:"ClipAI Post",text:item.caption+(item.link?`\n\n${item.link}`:"")});
         updateItem(item.id,"status","done");
         if (isSupabaseConfigured) { try { await supabase.from("tasks").update({status:"done",updated_at:new Date().toISOString()}).eq("id",item.id); } catch {} }
       } else { alert("อุปกรณ์ไม่รองรับการแชร์ไฟล์ กรุณาดาวน์โหลดและโพสเอง"); }
@@ -668,14 +689,11 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
         <button onClick={()=>setQueueTab("shopee")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="shopee"?SHOPEE_RED:"transparent",color:"#fff"}}>🧡 คิว Shopee ({shopeeItems.filter(i=>i.queue).length}/{shopeeItems.length})</button>
         <button onClick={()=>setQueueTab("tiktok")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="tiktok"?"#222":"transparent",color:"#fff"}}>🖤 คิว TikTok ({tiktokItems.filter(i=>i.queue).length}/{tiktokItems.length})</button>
       </div>
-
-      {/* DB Status */}
       <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",padding:"6px 10px",borderRadius:"8px",background:"rgba(255,255,255,0.03)"}}>
         <div style={{width:"6px",height:"6px",borderRadius:"50%",background:isSupabaseConfigured?GREEN:SHOPEE_ORANGE}}/>
         <span style={{color:isSupabaseConfigured?GREEN:SHOPEE_ORANGE}}>{isSupabaseConfigured?"บันทึกลง Supabase อัตโนมัติ":"ข้อมูลอยู่ใน RAM เท่านั้น"}</span>
         {dbLoading&&<span style={{color:TEXT_MUTED,marginLeft:"auto"}}>⏳ กำลังโหลด...</span>}
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}}>
         {[["📋 ทั้งหมด",items.length,TEXT_MUTED],["⏳ ในคิว",items.filter(i=>i.queue).length,SHOPEE_ORANGE],["✅ พร้อม",items.filter(i=>!i.queue&&i.status==="ready").length,GREEN]].map(([label,val,color])=>(<div key={label} style={{background:"rgba(255,255,255,0.04)",borderRadius:"10px",padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,0.07)"}}><div style={{fontSize:"20px",fontWeight:"800",color}}>{val}</div><div style={{fontSize:"10px",color:TEXT_MUTED}}>{label}</div></div>))}
       </div>
@@ -696,9 +714,30 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
               {items.length>1&&(<button onClick={()=>removeItem(item.id)} style={{background:"rgba(231,76,60,0.15)",border:"none",color:"#e74c3c",borderRadius:"6px",padding:"3px 8px",fontSize:"12px",cursor:"pointer"}}>✕ ลบ</button>)}
             </div>
           </div>
+
+          {/* เลือกวิดีโอ */}
           <input ref={el=>videoRefs.current[item.id]=el} type="file" accept="video/*" style={{display:"none"}} onChange={e=>handleVideoSelect(item.id,e)}/>
           <button onClick={()=>videoRefs.current[item.id]?.click()} style={{width:"100%",padding:"9px",borderRadius:"8px",border:`1px dashed ${item.videoName?"rgba(39,174,96,0.5)":"rgba(255,255,255,0.15)"}`,background:item.videoName?"rgba(39,174,96,0.07)":"rgba(255,255,255,0.03)",color:item.videoName?GREEN:TEXT_MUTED,fontSize:"12px",cursor:"pointer",marginBottom:"8px",textAlign:"left"}}>{item.videoName?`🎬 ${item.videoName}`:"📁 กดเลือกไฟล์วิดีโอ..."}</button>
-          <textarea placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..." value={item.caption} onChange={e=>updateItem(item.id,"caption",e.target.value)} onBlur={()=>saveItemToDB(item.id)} rows={3} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"9px 12px",color:TEXT_MAIN,fontSize:"12px",outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif",marginBottom:"8px"}}/>
+
+          {/* แคปชั่น */}
+          <textarea
+            placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..."
+            value={item.caption}
+            onChange={e=>updateItem(item.id,"caption",e.target.value)}
+            onBlur={()=>saveItemToDB(item.id)}
+            rows={3}
+            style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"9px 12px",color:TEXT_MAIN,fontSize:"12px",outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif",marginBottom:"8px"}}
+          />
+
+          {/* ช่องลิงก์แยก — ใหม่ */}
+          <input
+            placeholder="🔗 ลิงก์สินค้า (Shopee/TikTok)..."
+            value={item.link||""}
+            onChange={e=>updateItem(item.id,"link",e.target.value)}
+            onBlur={()=>saveItemToDB(item.id)}
+            style={{width:"100%",background:"rgba(255,165,0,0.07)",border:"1px solid rgba(255,165,0,0.25)",borderRadius:"8px",padding:"9px 12px",color:TEXT_MAIN,fontSize:"12px",outline:"none",boxSizing:"border-box",marginBottom:"8px"}}
+          />
+
           <div style={{display:"flex",gap:"8px"}}>
             <button onClick={()=>toggleQueue(item.id)} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",color:"#fff",background:item.queue?"#D35400":item.videoName?GREEN:"rgba(255,255,255,0.1)"}}>
               {item.queue?<><ArrowLeft size={12} style={{display:"inline",marginRight:4}}/>ดึงออกจากคิว</>:<>ส่งเข้าคิว {platformLabel} <ArrowRight size={12} style={{display:"inline",marginLeft:4}}/></>}
