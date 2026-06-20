@@ -133,7 +133,6 @@ function AdminPanel({ onLogout }) {
   const [created, setCreated] = useState("");
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
-
   const loadKeys = async () => {
     setLoading(true);
     const names = await kList();
@@ -143,7 +142,6 @@ function AdminPanel({ onLogout }) {
     setKeys(list); setLoading(false);
   };
   useEffect(()=>{ loadKeys(); },[]);
-
   const stats = { total:keys.length, active:keys.filter(k=>k.active&&!isExpired(k)).length, expired:keys.filter(k=>isExpired(k)||!k.active).length, pending:keys.filter(k=>!k.loginCount||k.loginCount===0).length, monthly:keys.filter(k=>k.type==="monthly").length, yearly:keys.filter(k=>k.type==="yearly").length, lifetime:keys.filter(k=>k.type==="lifetime").length };
   const revenueTotal = keys.reduce((sum,k)=>sum+keyPrice(k.type),0);
   const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear();
@@ -151,52 +149,35 @@ function AdminPanel({ onLogout }) {
   const months6 = Array.from({length:6},(_,i)=>{ const d=new Date(); d.setMonth(d.getMonth()-5+i); return {label:`${d.getMonth()+1}/${d.getFullYear()}`,m:d.getMonth(),y:d.getFullYear()}; });
   const chartData = months6.map(({label,m,y})=>({ label, revenue:keys.filter(k=>{const d=new Date(k.createdAt);return d.getMonth()===m&&d.getFullYear()===y;}).reduce((sum,k)=>sum+keyPrice(k.type),0), count:keys.filter(k=>{const d=new Date(k.createdAt);return d.getMonth()===m&&d.getFullYear()===y;}).length }));
   const maxRev = Math.max(...chartData.map(d=>d.revenue),1);
-
   const createKey = async () => { const code=genKey(newType); const kd={code,type:newType,buyerName:newName||"ไม่ระบุ",note:newNote,active:true,createdAt:new Date().toISOString(),expiresAt:getExpiry(newType),loginCount:0,lastLogin:null}; await kSet(`key:${code}`,kd); setCreated(code); setNewName(""); setNewNote(""); loadKeys(); };
   const toggleKey = async (code,cur) => { const d=await kGet(`key:${code}`); if(d){d.active=!cur;await kSet(`key:${code}`,d);loadKeys();} };
   const deleteKey = async (code) => { if(!confirm(`ลบ Key ${code}?`))return; await kDel(`key:${code}`); loadKeys(); };
   const copyKey = (text) => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(()=>setCopied(false),2000); };
   const filtered = keys.filter(k=>k.keyCode.includes(search.toUpperCase())||k.buyerName?.includes(search)||k.note?.includes(search));
-
   const menuItems = [{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"create",icon:"🔑",label:"License Keys"},{id:"keys",icon:"👥",label:"ลูกค้า"},{id:"revenue",icon:"💰",label:"ยอดขาย"}];
-
   return (
     <div style={{minHeight:"100vh",background:"#0d1117",color:TEXT_MAIN,fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif",display:"flex"}}>
       <div style={{width:"200px",background:"#13132A",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",flexShrink:0}}>
         <div style={{padding:"20px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"16px",fontWeight:"800",color:SHOPEE_ORANGE}}>ClipAI Admin</div><div style={{fontSize:"11px",color:TEXT_MUTED,marginTop:"2px"}}>Management Panel</div></div>
-        <nav style={{flex:1,padding:"12px 8px"}}>
-          {menuItems.map(item=>(<button key={item.id} onClick={()=>setAdminTab(item.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:"10px",padding:"10px 12px",borderRadius:"8px",border:"none",fontSize:"13px",cursor:"pointer",marginBottom:"4px",background:adminTab===item.id?"rgba(238,77,45,0.15)":"transparent",color:adminTab===item.id?SHOPEE_RED:TEXT_MUTED,fontWeight:adminTab===item.id?"700":"400"}}><span>{item.icon}</span>{item.label}</button>))}
-        </nav>
+        <nav style={{flex:1,padding:"12px 8px"}}>{menuItems.map(item=>(<button key={item.id} onClick={()=>setAdminTab(item.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:"10px",padding:"10px 12px",borderRadius:"8px",border:"none",fontSize:"13px",cursor:"pointer",marginBottom:"4px",background:adminTab===item.id?"rgba(238,77,45,0.15)":"transparent",color:adminTab===item.id?SHOPEE_RED:TEXT_MUTED,fontWeight:adminTab===item.id?"700":"400"}}><span>{item.icon}</span>{item.label}</button>))}</nav>
         <div style={{padding:"16px 8px",borderTop:"1px solid rgba(255,255,255,0.06)"}}><button onClick={onLogout} style={{width:"100%",padding:"9px",borderRadius:"8px",border:"none",background:"rgba(255,255,255,0.06)",color:TEXT_MUTED,fontSize:"12px",cursor:"pointer"}}>ออกจากระบบ</button></div>
       </div>
       <div style={{flex:1,overflow:"auto"}}>
         <div style={{padding:"20px 24px",borderBottom:"1px solid rgba(255,255,255,0.06)",background:"#13132A"}}><div style={{fontSize:"20px",fontWeight:"800"}}>{adminTab==="dashboard"?"Dashboard":adminTab==="create"?"สร้าง License Key":adminTab==="keys"?"รายการลูกค้า":"ยอดขาย"}</div></div>
         <div style={{padding:"20px 24px"}}>
           {adminTab==="dashboard"&&(<>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"16px"}}>
-              {[{label:"ลูกค้า",val:stats.total,color:"#667eea",icon:"👥"},{label:"Active Keys",val:stats.active,color:GREEN,icon:"✅"},{label:"รายได้เดือนนี้",val:`฿${revenueMonth.toLocaleString()}`,color:SHOPEE_ORANGE,icon:"📅"},{label:"รายได้รวม",val:`฿${revenueTotal.toLocaleString()}`,color:"#e74c3c",icon:"💰"}].map(s=>(<div key={s.label} style={{background:BG_CARD,borderRadius:"12px",padding:"16px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"11px",color:TEXT_MUTED,marginBottom:"6px"}}>{s.icon} {s.label}</div><div style={{fontSize:"22px",fontWeight:"800",color:s.color}}>{s.val}</div></div>))}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"20px"}}>
-              {[{label:"รอ Activate",val:stats.pending,color:SHOPEE_ORANGE},{label:"หมดอายุ",val:stats.expired,color:"#e74c3c"},{label:"ยกเลิก",val:0,color:TEXT_MUTED},{label:"Keys ทั้งหมด",val:stats.total,color:"#9B59B6"}].map(s=>(<div key={s.label} style={{background:BG_CARD,borderRadius:"12px",padding:"16px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"11px",color:TEXT_MUTED,marginBottom:"6px"}}>{s.label}</div><div style={{fontSize:"22px",fontWeight:"800",color:s.color}}>{s.val}</div></div>))}
-            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"16px"}}>{[{label:"ลูกค้า",val:stats.total,color:"#667eea",icon:"👥"},{label:"Active Keys",val:stats.active,color:GREEN,icon:"✅"},{label:"รายได้เดือนนี้",val:`฿${revenueMonth.toLocaleString()}`,color:SHOPEE_ORANGE,icon:"📅"},{label:"รายได้รวม",val:`฿${revenueTotal.toLocaleString()}`,color:"#e74c3c",icon:"💰"}].map(s=>(<div key={s.label} style={{background:BG_CARD,borderRadius:"12px",padding:"16px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"11px",color:TEXT_MUTED,marginBottom:"6px"}}>{s.icon} {s.label}</div><div style={{fontSize:"22px",fontWeight:"800",color:s.color}}>{s.val}</div></div>))}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"20px"}}>{[{label:"รอ Activate",val:stats.pending,color:SHOPEE_ORANGE},{label:"หมดอายุ",val:stats.expired,color:"#e74c3c"},{label:"ยกเลิก",val:0,color:TEXT_MUTED},{label:"Keys ทั้งหมด",val:stats.total,color:"#9B59B6"}].map(s=>(<div key={s.label} style={{background:BG_CARD,borderRadius:"12px",padding:"16px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"11px",color:TEXT_MUTED,marginBottom:"6px"}}>{s.label}</div><div style={{fontSize:"22px",fontWeight:"800",color:s.color}}>{s.val}</div></div>))}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px",marginBottom:"16px"}}>
               <div style={{background:BG_CARD,borderRadius:"14px",padding:"18px",border:"1px solid rgba(255,255,255,0.06)"}}>
                 <div style={{fontSize:"13px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"16px"}}>ยอดขายรายเดือน (บาท)</div>
-                <div style={{display:"flex",alignItems:"flex-end",gap:"8px",height:"120px"}}>
-                  {chartData.map((d,i)=>(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"4px"}}><div style={{fontSize:"9px",color:TEXT_MUTED}}>{d.revenue>0?`฿${d.revenue}`:""}</div><div style={{width:"100%",borderRadius:"4px 4px 0 0",background:i===chartData.length-1?SHOPEE_RED:"#9B59B6",minHeight:"4px",height:`${Math.max(4,(d.revenue/maxRev)*100)}px`}}/><div style={{fontSize:"9px",color:TEXT_MUTED,whiteSpace:"nowrap"}}>{d.label}</div></div>))}
-                </div>
+                <div style={{display:"flex",alignItems:"flex-end",gap:"8px",height:"120px"}}>{chartData.map((d,i)=>(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"4px"}}><div style={{fontSize:"9px",color:TEXT_MUTED}}>{d.revenue>0?`฿${d.revenue}`:""}</div><div style={{width:"100%",borderRadius:"4px 4px 0 0",background:i===chartData.length-1?SHOPEE_RED:"#9B59B6",minHeight:"4px",height:`${Math.max(4,(d.revenue/maxRev)*100)}px`}}/><div style={{fontSize:"9px",color:TEXT_MUTED,whiteSpace:"nowrap"}}>{d.label}</div></div>))}</div>
               </div>
               <div style={{background:BG_CARD,borderRadius:"14px",padding:"18px",border:"1px solid rgba(255,255,255,0.06)"}}>
                 <div style={{fontSize:"13px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"16px"}}>สัดส่วนแพ็กเกจ</div>
                 <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
-                  <svg width="100" height="100" viewBox="0 0 100 100">
-                    {(()=>{ const total=stats.total||1; const segs=[{val:stats.monthly,color:SHOPEE_ORANGE},{val:stats.yearly,color:"#9B59B6"},{val:stats.lifetime,color:GREEN}]; let offset=0; return segs.map((seg,i)=>{ const pct=seg.val/total; const dash=pct*251.2; const el=<circle key={i} cx="50" cy="50" r="40" fill="none" stroke={seg.color} strokeWidth="18" strokeDasharray={`${dash} ${251.2-dash}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" opacity="0.85"/>; offset+=dash; return el; }); })()}
-                    <circle cx="50" cy="50" r="31" fill="#13132A"/>
-                    <text x="50" y="55" textAnchor="middle" fill={TEXT_MAIN} fontSize="13" fontWeight="800">{stats.total}</text>
-                  </svg>
-                  <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
-                    {[["รายเดือน",stats.monthly,SHOPEE_ORANGE],["รายปี",stats.yearly,"#9B59B6"],["ตลอดชีพ",stats.lifetime,GREEN]].map(([l,v,c])=>(<div key={l} style={{display:"flex",alignItems:"center",gap:"6px"}}><div style={{width:"10px",height:"10px",borderRadius:"2px",background:c}}/><span style={{fontSize:"11px",color:TEXT_MUTED}}>{l}</span><span style={{fontSize:"11px",fontWeight:"700",color:TEXT_MAIN,marginLeft:"4px"}}>{v}</span></div>))}
-                  </div>
+                  <svg width="100" height="100" viewBox="0 0 100 100">{(()=>{ const total=stats.total||1; const segs=[{val:stats.monthly,color:SHOPEE_ORANGE},{val:stats.yearly,color:"#9B59B6"},{val:stats.lifetime,color:GREEN}]; let offset=0; return segs.map((seg,i)=>{ const pct=seg.val/total; const dash=pct*251.2; const el=<circle key={i} cx="50" cy="50" r="40" fill="none" stroke={seg.color} strokeWidth="18" strokeDasharray={`${dash} ${251.2-dash}`} strokeDashoffset={-offset} transform="rotate(-90 50 50)" opacity="0.85"/>; offset+=dash; return el; }); })()}<circle cx="50" cy="50" r="31" fill="#13132A"/><text x="50" y="55" textAnchor="middle" fill={TEXT_MAIN} fontSize="13" fontWeight="800">{stats.total}</text></svg>
+                  <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>{[["รายเดือน",stats.monthly,SHOPEE_ORANGE],["รายปี",stats.yearly,"#9B59B6"],["ตลอดชีพ",stats.lifetime,GREEN]].map(([l,v,c])=>(<div key={l} style={{display:"flex",alignItems:"center",gap:"6px"}}><div style={{width:"10px",height:"10px",borderRadius:"2px",background:c}}/><span style={{fontSize:"11px",color:TEXT_MUTED}}>{l}</span><span style={{fontSize:"11px",fontWeight:"700",color:TEXT_MAIN,marginLeft:"4px"}}>{v}</span></div>))}</div>
                 </div>
               </div>
             </div>
@@ -206,33 +187,24 @@ function AdminPanel({ onLogout }) {
               {keys.length===0&&<div style={{textAlign:"center",color:TEXT_MUTED,padding:"20px"}}>ยังไม่มีข้อมูล</div>}
             </div>
           </>)}
-          {adminTab==="create"&&(<div style={{maxWidth:"480px"}}>
-            <div style={{background:BG_CARD,borderRadius:"16px",padding:"20px",border:"1px solid rgba(255,255,255,0.07)"}}>
-              <div style={{fontSize:"14px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"16px"}}>สร้าง License Key ใหม่</div>
-              <label style={{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"5px"}}>ชื่อผู้ซื้อ / ร้านค้า</label>
-              <input style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"12px"}} placeholder="เช่น ร้านสมชาย" value={newName} onChange={e=>setNewName(e.target.value)} />
-              <label style={{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"8px"}}>ประเภท Key</label>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
-                {[["monthly","📅 รายเดือน","30 วัน",`฿${PRICE_MONTHLY}`],["yearly","📆 รายปี","365 วัน",`฿${PRICE_YEARLY}`],["lifetime","♾️ ตลอดชีพ","ไม่หมด",`฿${PRICE_LIFETIME}`]].map(([v,l,s,p])=>(<div key={v} style={{background:newType===v?"rgba(238,77,45,0.15)":"rgba(255,255,255,0.04)",border:newType===v?`2px solid ${SHOPEE_RED}`:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"10px 8px",textAlign:"center",cursor:"pointer"}} onClick={()=>setNewType(v)}><div style={{fontSize:"12px",fontWeight:"700",color:TEXT_MAIN}}>{l}</div><div style={{fontSize:"10px",color:TEXT_MUTED}}>{s}</div><div style={{fontSize:"12px",fontWeight:"800",color:SHOPEE_ORANGE,marginTop:"4px"}}>{p}</div></div>))}
-              </div>
-              <label style={{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"5px"}}>หมายเหตุ</label>
-              <input style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"14px"}} placeholder="เช่น ชำระ 299 บาท" value={newNote} onChange={e=>setNewNote(e.target.value)} />
-              <button style={{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"14px",fontWeight:"700",cursor:"pointer"}} onClick={createKey}>🔑 สร้าง Key ใหม่</button>
-              {created&&(<div style={{marginTop:"14px",background:"rgba(39,174,96,0.1)",border:"1px solid rgba(39,174,96,0.3)",borderRadius:"12px",padding:"14px"}}><div style={{fontSize:"13px",color:TEXT_MUTED,marginBottom:"6px"}}>สร้างสำเร็จ!</div><div style={{fontFamily:"monospace",fontSize:"18px",fontWeight:"800",color:GREEN,letterSpacing:"2px",textAlign:"center",padding:"10px",background:"rgba(0,0,0,0.3)",borderRadius:"8px",marginBottom:"8px"}}>{created}</div><button style={{width:"100%",background:GREEN,color:"#fff",border:"none",borderRadius:"8px",padding:"9px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}} onClick={()=>copyKey(created)}>{copied?"คัดลอกแล้ว":"📋 คัดลอก Key"}</button></div>)}
-            </div>
-          </div>)}
+          {adminTab==="create"&&(<div style={{maxWidth:"480px"}}><div style={{background:BG_CARD,borderRadius:"16px",padding:"20px",border:"1px solid rgba(255,255,255,0.07)"}}>
+            <div style={{fontSize:"14px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"16px"}}>สร้าง License Key ใหม่</div>
+            <label style={{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"5px"}}>ชื่อผู้ซื้อ / ร้านค้า</label>
+            <input style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"12px"}} placeholder="เช่น ร้านสมชาย" value={newName} onChange={e=>setNewName(e.target.value)} />
+            <label style={{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"8px"}}>ประเภท Key</label>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>{[["monthly","📅 รายเดือน","30 วัน",`฿${PRICE_MONTHLY}`],["yearly","📆 รายปี","365 วัน",`฿${PRICE_YEARLY}`],["lifetime","♾️ ตลอดชีพ","ไม่หมด",`฿${PRICE_LIFETIME}`]].map(([v,l,s,p])=>(<div key={v} style={{background:newType===v?"rgba(238,77,45,0.15)":"rgba(255,255,255,0.04)",border:newType===v?`2px solid ${SHOPEE_RED}`:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"10px 8px",textAlign:"center",cursor:"pointer"}} onClick={()=>setNewType(v)}><div style={{fontSize:"12px",fontWeight:"700",color:TEXT_MAIN}}>{l}</div><div style={{fontSize:"10px",color:TEXT_MUTED}}>{s}</div><div style={{fontSize:"12px",fontWeight:"800",color:SHOPEE_ORANGE,marginTop:"4px"}}>{p}</div></div>))}</div>
+            <label style={{display:"block",fontSize:"12px",color:TEXT_MUTED,marginBottom:"5px"}}>หมายเหตุ</label>
+            <input style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"14px"}} placeholder="เช่น ชำระ 299 บาท" value={newNote} onChange={e=>setNewNote(e.target.value)} />
+            <button style={{width:"100%",background:`linear-gradient(135deg,${SHOPEE_RED},#C0392B)`,color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"14px",fontWeight:"700",cursor:"pointer"}} onClick={createKey}>🔑 สร้าง Key ใหม่</button>
+            {created&&(<div style={{marginTop:"14px",background:"rgba(39,174,96,0.1)",border:"1px solid rgba(39,174,96,0.3)",borderRadius:"12px",padding:"14px"}}><div style={{fontSize:"13px",color:TEXT_MUTED,marginBottom:"6px"}}>สร้างสำเร็จ!</div><div style={{fontFamily:"monospace",fontSize:"18px",fontWeight:"800",color:GREEN,letterSpacing:"2px",textAlign:"center",padding:"10px",background:"rgba(0,0,0,0.3)",borderRadius:"8px",marginBottom:"8px"}}>{created}</div><button style={{width:"100%",background:GREEN,color:"#fff",border:"none",borderRadius:"8px",padding:"9px",fontSize:"13px",fontWeight:"700",cursor:"pointer"}} onClick={()=>copyKey(created)}>{copied?"คัดลอกแล้ว":"📋 คัดลอก Key"}</button></div>)}
+          </div></div>)}
           {adminTab==="keys"&&(<>
             <input style={{width:"100%",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"10px 14px",color:TEXT_MAIN,fontSize:"14px",outline:"none",boxSizing:"border-box",marginBottom:"12px"}} placeholder="ค้นหา Key / ชื่อผู้ซื้อ..." value={search} onChange={e=>setSearch(e.target.value)} />
             {loading?<div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>กำลังโหลด...</div>:filtered.length===0?<div style={{textAlign:"center",color:TEXT_MUTED,padding:"30px"}}>ไม่พบข้อมูล</div>:filtered.map(k=>{ const exp=isExpired(k); return (<div key={k.keyCode} style={{background:BG_CARD,borderRadius:"12px",padding:"14px",marginBottom:"10px",border:k.active&&!exp?"1px solid rgba(255,255,255,0.08)":"1px solid rgba(238,77,45,0.2)"}}><div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}><span style={{fontFamily:"monospace",fontSize:"14px",fontWeight:"800",color:TEXT_MAIN}}>{k.keyCode}</span><span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"20px",background:"rgba(255,255,255,0.1)",color:SHOPEE_ORANGE}}>{k.type==="monthly"?"รายเดือน":k.type==="yearly"?"รายปี":"ตลอดชีพ"}</span><span style={{fontSize:"11px",fontWeight:"700",color:SHOPEE_ORANGE,marginLeft:"auto"}}>฿{keyPrice(k.type).toLocaleString()}</span></div><div style={{fontSize:"12px",color:TEXT_MUTED}}>{k.buyerName?`👤 ${k.buyerName} | 📝 ${k.note}`:""}</div><div style={{fontSize:"12px",color:TEXT_MUTED}}>หมดอายุ: {exp?<span style={{color:"#e74c3c"}}>หมดแล้ว</span>:<span>{fmtDate(k.expiresAt)}</span>} | เข้าใช้: {k.loginCount||0} ครั้ง</div><div style={{display:"flex",gap:"8px",marginTop:"8px"}}><button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(255,255,255,0.1)",color:TEXT_MAIN}} onClick={()=>toggleKey(k.keyCode,k.active)}>{k.active?"🔒 ระงับ":"✅ เปิดใช้"}</button><button style={{flex:1,padding:"5px",borderRadius:"6px",border:"none",fontSize:"12px",cursor:"pointer",background:"rgba(231,76,60,0.2)",color:"#e74c3c"}} onClick={()=>deleteKey(k.keyCode)}>🗑️ ลบ</button></div></div>); })}
           </>)}
           {adminTab==="revenue"&&(<>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"16px"}}>
-              {[{label:"รายได้เดือนนี้",val:`฿${revenueMonth.toLocaleString()}`,color:SHOPEE_ORANGE},{label:"รายได้รวมทั้งหมด",val:`฿${revenueTotal.toLocaleString()}`,color:GREEN},{label:"รายเดือน (จำนวน)",val:`${stats.monthly} คน x ฿${PRICE_MONTHLY}`,color:"#667eea"},{label:"รายปี + ตลอดชีพ",val:`${stats.yearly+stats.lifetime} คน`,color:"#9B59B6"}].map(s=>(<div key={s.label} style={{background:BG_CARD,borderRadius:"12px",padding:"16px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"11px",color:TEXT_MUTED,marginBottom:"6px"}}>{s.label}</div><div style={{fontSize:"18px",fontWeight:"800",color:s.color}}>{s.val}</div></div>))}
-            </div>
-            <div style={{background:BG_CARD,borderRadius:"14px",padding:"18px",border:"1px solid rgba(255,255,255,0.06)"}}>
-              <div style={{fontSize:"13px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"16px"}}>ยอดขายรายเดือน</div>
-              {chartData.map((d,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}><div style={{width:"60px",fontSize:"11px",color:TEXT_MUTED,textAlign:"right"}}>{d.label}</div><div style={{flex:1,background:"rgba(255,255,255,0.05)",borderRadius:"4px",height:"20px",overflow:"hidden"}}><div style={{height:"100%",background:i===chartData.length-1?SHOPEE_RED:"#9B59B6",borderRadius:"4px",width:`${Math.max(2,(d.revenue/maxRev)*100)}%`}}/></div><div style={{width:"80px",fontSize:"11px",color:TEXT_MAIN,fontWeight:"700"}}>฿{d.revenue.toLocaleString()} ({d.count})</div></div>))}
-            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"16px"}}>{[{label:"รายได้เดือนนี้",val:`฿${revenueMonth.toLocaleString()}`,color:SHOPEE_ORANGE},{label:"รายได้รวมทั้งหมด",val:`฿${revenueTotal.toLocaleString()}`,color:GREEN},{label:"รายเดือน (จำนวน)",val:`${stats.monthly} คน x ฿${PRICE_MONTHLY}`,color:"#667eea"},{label:"รายปี + ตลอดชีพ",val:`${stats.yearly+stats.lifetime} คน`,color:"#9B59B6"}].map(s=>(<div key={s.label} style={{background:BG_CARD,borderRadius:"12px",padding:"16px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"11px",color:TEXT_MUTED,marginBottom:"6px"}}>{s.label}</div><div style={{fontSize:"18px",fontWeight:"800",color:s.color}}>{s.val}</div></div>))}</div>
+            <div style={{background:BG_CARD,borderRadius:"14px",padding:"18px",border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:"13px",fontWeight:"700",color:SHOPEE_ORANGE,marginBottom:"16px"}}>ยอดขายรายเดือน</div>{chartData.map((d,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px"}}><div style={{width:"60px",fontSize:"11px",color:TEXT_MUTED,textAlign:"right"}}>{d.label}</div><div style={{flex:1,background:"rgba(255,255,255,0.05)",borderRadius:"4px",height:"20px",overflow:"hidden"}}><div style={{height:"100%",background:i===chartData.length-1?SHOPEE_RED:"#9B59B6",borderRadius:"4px",width:`${Math.max(2,(d.revenue/maxRev)*100)}%`}}/></div><div style={{width:"80px",fontSize:"11px",color:TEXT_MAIN,fontWeight:"700"}}>฿{d.revenue.toLocaleString()} ({d.count})</div></div>))}</div>
           </>)}
         </div>
       </div>
@@ -259,24 +231,20 @@ function MainApp({ sess, onLogout }) {
   const [copied, setCopied] = useState("");
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [botStatus, setBotStatus] = useState("Idle");
-  const [shopeeItems, setShopeeItems] = useState([{ id:1, videoFile:null, videoName:"", caption:"", status:"ready", queue:false, errorImg:"" }]);
-  const [tiktokItems, setTiktokItems] = useState([{ id:1, videoFile:null, videoName:"", caption:"", status:"ready", queue:false, errorImg:"" }]);
-
+  const [shopeeItems, setShopeeItems] = useState([{ id:"init-1", videoFile:null, videoName:"", caption:"", status:"ready", queue:false, errorImg:"" }]);
+  const [tiktokItems, setTiktokItems] = useState([{ id:"init-2", videoFile:null, videoName:"", caption:"", status:"ready", queue:false, errorImg:"" }]);
   const expired = isExpired(keyInfo||{});
   const dl = daysLeft(keyInfo?.expiresAt);
-
   const handleToggleBot = () => {
     if (isBotRunning) { setBotStatus("Stopping"); setTimeout(()=>{ setIsBotRunning(false); setBotStatus("Idle"); },1500); }
     else { setIsBotRunning(true); setBotStatus("Running"); }
   };
-
   const genTemplate = () => {
     const t = TEMPLATES.find(x=>x.id===tmpl);
     if (!t||!product||!price) return;
     const h = hook||HOOKS[Math.floor(Math.random()*HOOKS.length)];
     setCaptionTmpl(`${h}\n\n${t.fn(product,price,disc,platform)}`);
   };
-
   const callAI = async (prompt,setFn,setLoad) => {
     setLoad(true);
     try {
@@ -289,7 +257,6 @@ function MainApp({ sess, onLogout }) {
     } catch { setFn("เกิดข้อผิดพลาด ลองใหม่"); }
     setLoad(false);
   };
-
   const genAI = () => callAI(`คุณเป็น Social Media Copywriter เชี่ยวชาญขายของออนไลน์ บนแพลตฟอร์ม ${platform.toUpperCase()}\nสร้างแคปชั่นปักตะกร้าสำหรับ:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}${link?`- ลิงก์: ${link}\n`:""}\nให้มี: Hook ดึงดูด, ภาษาไทยสนุก, Emoji, วิธีสั่งซื้อ, แฮชแท็ก 5-8 อัน\nตอบด้วยแคปชั่นเท่านั้น`,setCaptionAi,setAiLoading);
   const genScript = () => callAI(`สร้างสคริปต์คลิปสั้น ${platform.toUpperCase()} ปักตะกร้า:\n- สินค้า: ${product}\n- ราคา: ${price} บาท\n${disc?`- ลด: ${disc}%\n`:""}\n[0-3 วิ] HOOK:\n[3-10 วิ] รีวิว:\n[10-20 วิ] จุดว้าว:\n[20-30 วิ] ปิดการขาย:\nใช้ภาษาไทยสไตล์อินฟลูเอนเซอร์`,setScript,setScriptLoading);
 
@@ -301,17 +268,24 @@ function MainApp({ sess, onLogout }) {
     setItems(prev => {
       const hasEmpty = prev.find(i=>!i.caption);
       if (hasEmpty) return prev.map(i=>i.id===hasEmpty.id?{...i,caption:fullCaption}:i);
-      if (prev.length<10) return [...prev,{id:Date.now(),videoFile:null,videoName:"",caption:fullCaption,status:"ready",queue:false,errorImg:""}];
+      if (prev.length<10) return [...prev,{id:`q-${Date.now()}`,videoFile:null,videoName:"",caption:fullCaption,status:"ready",queue:false,errorImg:""}];
       return prev;
     });
   };
 
-  const sendVideoToQueue = (blob,fileName) => {
+  const sendVideoToQueue = async (blob,fileName) => {
     const setItems = platform==="shopee" ? setShopeeItems : setTiktokItems;
+    let newId = `q-${Date.now()}`;
+    if (isSupabaseConfigured) {
+      try {
+        const { data } = await supabase.from("tasks").insert({ user_key:licKey, platform, video_name:fileName, caption:"", status:"ready", queue:false }).select().single();
+        if (data) newId = data.id;
+      } catch {}
+    }
     setItems(prev => {
       const hasEmpty = prev.find(i=>!i.videoName);
-      if (hasEmpty) return prev.map(i=>i.id===hasEmpty.id?{...i,videoFile:blob,videoName:fileName}:i);
-      if (prev.length<10) return [...prev,{id:Date.now(),videoFile:blob,videoName:fileName,caption:"",status:"ready",queue:false,errorImg:""}];
+      if (hasEmpty) return prev.map(i=>i.id===hasEmpty.id?{...i,videoFile:blob,videoName:fileName,id:newId}:i);
+      if (prev.length<10) return [...prev,{id:newId,videoFile:blob,videoName:fileName,caption:"",status:"ready",queue:false,errorImg:""}];
       return prev;
     });
     setPage("queue");
@@ -319,7 +293,6 @@ function MainApp({ sess, onLogout }) {
 
   const M = MS;
   const headerBg = platform==="shopee"?`linear-gradient(135deg, ${SHOPEE_RED}, #8B0000)`:`linear-gradient(135deg, ${TIKTOK_BLACK}, #333)`;
-
   const renderContent = () => {
     switch (page) {
       case "content": return (
@@ -354,6 +327,26 @@ function MainApp({ sess, onLogout }) {
               {captionAi&&<ResultBox text={captionAi} id="ai" copied={copied} onCopy={copyAndSendToQueue} queueLabel={platform==="shopee"?"🧡 Shopee":"🖤 TikTok"}/>}
             </>)}
           </div>
+          {(captionTmpl||captionAi)&&(
+            <div style={M.card}>
+              <div style={M.cardT}>🤖 ส่งข้อมูลเข้าคิวงานออโต้บอท (Supabase)</div>
+              <button
+                onClick={async()=>{
+                  if(!product||!price){alert("กรุณากรอกชื่อสินค้าและราคาก่อนส่งเข้าคิวครับ");return;}
+                  try{
+                    const finalCaption=activeTab==="template"?captionTmpl:captionAi;
+                    const{error}=await supabase.from("tasks").insert([{platform,video_path:link||"",caption:finalCaption,product_name:product,status:"pending"}]);
+                    if(error)throw error;
+                    alert("ส่งข้อมูลสินค้าและแคปชั่นเข้าคิวสำเร็จ! บอทในมือถือดึงงานไปโพสต์ได้แล้วครับ");
+                  }catch(err){alert("ส่งข้อมูลเข้าคิวล้มเหลว: "+err.message);}
+                }}
+                style={{width:"100%",background:`linear-gradient(135deg,${SHOPEE_ORANGE},#D35400)`,color:"#fff",border:"none",borderRadius:"10px",padding:"14px",fontSize:"15px",fontWeight:"800",cursor:"pointer",boxShadow:"0 4px 15px rgba(245,166,35,0.3)"}}
+              >
+                🚀 ส่งงานชิ้นนี้เข้าคิวบอทมือถือ ({platform==="shopee"?"Shopee":"TikTok"})
+              </button>
+              <div style={{fontSize:"11px",color:TEXT_MUTED,marginTop:"8px",textAlign:"center"}}>บันทึกแคปชั่น + ข้อมูลสินค้าลง Supabase รอบอทดึงไปโพสต์</div>
+            </div>
+          )}
           <div style={M.card}>
             <div style={M.cardT}>🎬 สคริปต์พูดในคลิปสั้น (AI)</div>
             <button style={{...M.btnS,opacity:scriptLoading?0.7:1}} onClick={genScript} disabled={scriptLoading||expired}>{scriptLoading?"AI กำลังเรียบเรียงสคริปต์...":"🎬 สร้างสคริปต์สั้น 15-30 วิ"}</button>
@@ -362,21 +355,17 @@ function MainApp({ sess, onLogout }) {
         </>
       );
       case "video": return <VideoGenerator M={M} expired={expired} product={product} price={price} disc={disc} captionForVideo={captionTmpl||captionAi} platform={platform} onVideoReady={sendVideoToQueue} />;
-      case "queue": return <VideoQueueManager M={M} platform={platform} shopeeItems={shopeeItems} setShopeeItems={setShopeeItems} tiktokItems={tiktokItems} setTiktokItems={setTiktokItems} />;
+      case "queue": return <VideoQueueManager M={M} platform={platform} licKey={licKey} shopeeItems={shopeeItems} setShopeeItems={setShopeeItems} tiktokItems={tiktokItems} setTiktokItems={setTiktokItems} />;
       case "settings": return <SettingsComponent M={M} isBotRunning={isBotRunning} botStatus={botStatus} />;
       default: return null;
     }
   };
-
   return (
     <div style={M.app}>
       <div style={{...M.hdr,background:headerBg}}>
         <div style={M.glow}/>
         <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"12px"}}>
-          <div>
-            <div style={M.logo}>🚀 ClipAI<span style={{color:platform==="shopee"?SHOPEE_ORANGE:TIKTOK_CYAN}}>{platform==="shopee"?"Shopee":"TikTok"}</span></div>
-            <div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)"}}>ระบบสร้างคลิปปักตะกร้า + แคปชั่นอัจฉริยะ</div>
-          </div>
+          <div><div style={M.logo}>🚀 ClipAI<span style={{color:platform==="shopee"?SHOPEE_ORANGE:TIKTOK_CYAN}}>{platform==="shopee"?"Shopee":"TikTok"}</span></div><div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)"}}>ระบบสร้างคลิปปักตะกร้า + แคปชั่นอัจฉริยะ</div></div>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <div style={{textAlign:"right"}}><div style={{fontSize:"10px",color:TEXT_MUTED}}>Bot Master Status</div><div style={{fontSize:"13px",fontWeight:"bold",color:botStatus==="Running"?"#27AE60":botStatus==="Stopping"?"#F5A623":"#FF6B6B"}}>{botStatus}</div></div>
             <button onClick={handleToggleBot} disabled={botStatus==="Stopping"} style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 14px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:isBotRunning?"#E74C3C":"#27AE60",color:"#fff",opacity:botStatus==="Stopping"?0.6:1}}>
@@ -422,12 +411,9 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
   const canvasRef = useRef(null);
   const videoFileInputRef = useRef(null);
   const fileInputRef = useRef(null);
-
   useEffect(()=>{ if(!overlayText&&product) setOverlayText(`${product}${price?` | ${price} บาท`:""}${disc?` ลด ${disc}%`:""}`); },[product,price,disc]);
-
   const handleFiles = (e) => { const files=Array.from(e.target.files||[]).slice(0,10); setImages(prev=>[...prev,...files.map(f=>({url:URL.createObjectURL(f),name:f.name}))].slice(0,10)); };
   const removeImage = (idx) => setImages(prev=>prev.filter((_,i)=>i!==idx));
-
   const renderVideo = async () => {
     if (images.length===0) return;
     setIsRendering(true); setProgress(0); setVideoUrl(""); setShareMsg("");
@@ -460,25 +446,21 @@ function VideoGenerator({ M, expired, product, price, disc, captionForVideo, pla
     recorder.stop(); await stopped;
     const blob=new Blob(chunks,{type:mime}); const fname=`clip-${Date.now()}.webm`;
     setVideoBlob(blob); setVideoFileName(fname); setVideoUrl(URL.createObjectURL(blob)); setIsRendering(false);
-    onVideoReady(blob,fname);
+    await onVideoReady(blob,fname);
     setShareMsg("เพิ่มคลิปลงคิวงานอัตโนมัติแล้ว! กดแท็บ คิวงาน & บอท เพื่อดู");
   };
-
-  const handleVideoFile = (e) => {
+  const handleVideoFile = async (e) => {
     const file=e.target.files?.[0]; if(!file) return;
     setVideoBlob(file); setVideoFileName(file.name); setVideoUrl(URL.createObjectURL(file));
-    onVideoReady(file,file.name);
+    await onVideoReady(file,file.name);
     setShareMsg("เพิ่มคลิปลงคิวงานอัตโนมัติแล้ว! กดแท็บ คิวงาน & บอท เพื่อดู");
   };
-
   const shareVideo = async () => {
     if(!videoBlob) return;
     const captionText=captionForVideo||`${product} ราคา ${price} บาท`;
     try { const file=new File([videoBlob],videoFileName,{type:videoBlob.type}); if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"ClipAI Post",text:captionText}); setShareMsg("เรียกหน้ารายการโพสต์สำเร็จ");}else{setShareMsg("อุปกรณ์ไม่รองรับการแชร์ไฟล์ ให้ดาวน์โหลดแล้วไปอัปโหลดเองครับ");} } catch { setShareMsg("เกิดข้อผิดพลาดในการส่งไฟล์"); }
   };
-
   function wrapText(ctx,text,x,y,maxWidth,lineHeight) { const words=text.split(" ");let line="";const lines=[]; for(const w of words){const test=line+w+" ";if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=w+" ";}else line=test;} lines.push(line); lines.forEach((l,i)=>ctx.fillText(l.trim(),x,y+i*lineHeight)); }
-
   return (
     <div>
       <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
@@ -519,10 +501,9 @@ function SettingsComponent({ M, isBotRunning, botStatus }) {
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [agentLogs, setAgentLogs] = useState(["[ระบบ] Agent พร้อมทำงาน รอการเชื่อมต่อ..."]);
   const logRef = useRef(null);
-
   useEffect(()=>{
     if (!agentEnabled) return;
-    const msgs = ["กำลังเชื่อมต่อกับ Shopee API...","ตรวจสอบ Session Token...","เชื่อมต่อสำเร็จ พร้อมรับคำสั่ง","ตรวจสอบคิวงาน...","ไม่พบงานในคิว กำลังรอ...","Heartbeat OK (ping 42ms)"];
+    const msgs = ["กำลังเชื่อมต่อกับ Shopee API...","ตรวจสอบ Session Token...","เชื่อมต่อสำเร็จ พร้อมรับคำสั่ง","ตรวจสอบคิวงาน...","ไม่พบงานในคิว กำลังรอ...","Heartbeat OK (ping 42ms)","กำลังโหลดคิวจาก Supabase...","คิวว่าง รอคำสั่งถัดไป..."];
     let i = 0;
     const interval = setInterval(()=>{
       const msg = msgs[i%msgs.length];
@@ -533,9 +514,7 @@ function SettingsComponent({ M, isBotRunning, botStatus }) {
     setAgentLogs(prev=>[...prev,`[${new Date().toLocaleTimeString("th-TH")}] Agent เริ่มทำงานแล้ว`]);
     return ()=>clearInterval(interval);
   },[agentEnabled]);
-
   useEffect(()=>{ if(logRef.current) logRef.current.scrollTop=logRef.current.scrollHeight; },[agentLogs]);
-
   const saveSettings = () => {
     localStorage.setItem("anthropic_api_key",apiKeyInput.trim());
     localStorage.setItem("tiktok_session",tiktokSession.trim());
@@ -543,31 +522,25 @@ function SettingsComponent({ M, isBotRunning, botStatus }) {
     localStorage.setItem("post_delay",delayInput);
     alert("บันทึกการตั้งค่าระบบเรียบร้อยแล้วครับ!");
   };
-
   return (
     <div>
       <div style={M.card}>
         <div style={M.cardT}>⚙️ ตั้งค่าคีย์แอปพลิเคชัน & AI</div>
         <label style={M.label}>Anthropic API Key (สำหรับระบบเขียนโพสต์บอท AI)</label>
         <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} />
-
         <div style={{marginTop:"16px",paddingTop:"16px",borderTop:"1px solid rgba(255,255,255,0.1)"}}>
           <h3 style={{fontSize:"15px",fontWeight:"600",color:TEXT_MAIN,margin:"0 0 4px"}}>ตั้งค่าบอทอัปโหลด & ผูกบัญชี</h3>
           <p style={{fontSize:"11px",color:TEXT_MUTED,margin:"0 0 12px"}}>จัดการคีย์การเชื่อมต่อและหน่วงเวลาการทำงานอัตโนมัติ</p>
-
           <div style={{background:"rgba(238,77,45,0.07)",border:"1px solid rgba(238,77,45,0.2)",borderRadius:"10px",padding:"12px",marginBottom:"10px"}}>
             <label style={{...M.label,color:SHOPEE_ORANGE,fontWeight:"700"}}>🧡 Shopee Session / Cookie</label>
             <input type="password" placeholder="วาง Shopee Session ID หรือ Cookie ที่นี่" value={shopeeSession} onChange={e=>setShopeeSession(e.target.value)} style={M.input}/>
           </div>
-
           <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"10px",padding:"12px",marginBottom:"10px"}}>
             <label style={{...M.label,color:"#aaa",fontWeight:"700"}}>🖤 TikTok Session / Cookie</label>
             <input type="password" placeholder="วาง TikTok Session ID หรือ Cookie ที่นี่" value={tiktokSession} onChange={e=>setTiktokSession(e.target.value)} style={M.input}/>
           </div>
-
           <label style={M.label}>ระยะเวลาหน่วงระหว่างคลิป (วินาที)</label>
           <input type="number" min="30" value={delayInput} onChange={e=>setDelayInput(e.target.value)} placeholder="แนะนำ 60 วินาทีขึ้นไป" style={M.input}/>
-
           <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"14px 0"}}>
             <input type="checkbox" id="autoRetry" checked={autoRetry} onChange={e=>setAutoRetry(e.target.checked)} style={{width:"16px",height:"16px",cursor:"pointer"}}/>
             <label htmlFor="autoRetry" style={{fontSize:"12px",color:TEXT_MAIN,cursor:"pointer"}}>เปิดใช้งานลองใหม่อัตโนมัติ (Auto-Retry) เมื่อบอทอัปโหลดพังหรือหลุดคิว</label>
@@ -575,8 +548,6 @@ function SettingsComponent({ M, isBotRunning, botStatus }) {
         </div>
         <button style={M.btnP} onClick={saveSettings}>💾 บันทึกการตั้งค่าทั้งหมด</button>
       </div>
-
-      {/* Agent Status Panel */}
       <div style={{...M.card,marginTop:0}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
           <div style={M.cardT}>🤖 สถานะ Agent (Bot หลังบ้าน)</div>
@@ -587,47 +558,105 @@ function SettingsComponent({ M, isBotRunning, botStatus }) {
             </div>
           </div>
         </div>
-
-        {/* Status Bar */}
         <div style={{display:"flex",alignItems:"center",gap:"8px",padding:"10px 12px",borderRadius:"8px",background:"rgba(0,0,0,0.3)",marginBottom:"10px",border:"1px solid rgba(255,255,255,0.07)"}}>
-          <div style={{width:"8px",height:"8px",borderRadius:"50%",background:agentEnabled?GREEN:"#e74c3c",boxShadow:agentEnabled?`0 0 6px ${GREEN}`:"none",flexShrink:0}}/>
-          <span style={{fontSize:"12px",color:TEXT_MAIN,fontWeight:"600"}}>
-            {agentEnabled?"สถานะ Agent: กำลังเชื่อมต่อและรอคำสั่ง...":"สถานะ Agent: ปิดใช้งาน (Toggle เพื่อเปิด)"}
-          </span>
+          <div style={{width:"8px",height:"8px",borderRadius:"50%",background:agentEnabled?GREEN:"#e74c3c",flexShrink:0}}/>
+          <span style={{fontSize:"12px",color:TEXT_MAIN,fontWeight:"600"}}>{agentEnabled?"สถานะ Agent: กำลังเชื่อมต่อและรอคำสั่ง...":"สถานะ Agent: ปิดใช้งาน (Toggle เพื่อเปิด)"}</span>
           <span style={{marginLeft:"auto",fontSize:"11px",color:TEXT_MUTED}}>Bot: {isBotRunning?botStatus:"Idle"}</span>
         </div>
-
-        {/* Log Window */}
         <div ref={logRef} style={{background:"#000",borderRadius:"8px",padding:"10px 12px",height:"160px",overflowY:"auto",fontFamily:"monospace",fontSize:"11px",lineHeight:"1.6",border:"1px solid rgba(255,255,255,0.08)"}}>
-          {agentLogs.map((log,i)=>(
-            <div key={i} style={{color:log.includes("สำเร็จ")||log.includes("OK")?GREEN:log.includes("ข้อผิดพลาด")||log.includes("Error")?"#e74c3c":log.includes("Agent เริ่ม")?SHOPEE_ORANGE:TEXT_MUTED}}>{log}</div>
-          ))}
-          {agentEnabled&&<div style={{color:GREEN,animation:"blink 1s infinite"}}>_</div>}
+          {agentLogs.map((log,i)=>(<div key={i} style={{color:log.includes("สำเร็จ")||log.includes("OK")||log.includes("เริ่ม")?GREEN:log.includes("ข้อผิดพลาด")||log.includes("Error")?"#e74c3c":TEXT_MUTED}}>{log}</div>))}
         </div>
-
-        <div style={{marginTop:"8px",fontSize:"11px",color:TEXT_MUTED,textAlign:"center"}}>Agent Log อัปเดตทุก 2.5 วินาที เพื่อให้เห็นว่าระบบยังทำงานอยู่</div>
+        <div style={{marginTop:"8px",fontSize:"11px",color:TEXT_MUTED,textAlign:"center"}}>Agent Log อัปเดตทุก 2.5 วินาที • DB: {isSupabaseConfigured?"เชื่อมต่อ Supabase แล้ว":"RAM เท่านั้น"}</div>
       </div>
     </div>
   );
 }
 
-function VideoQueueManager({ M, platform, shopeeItems, setShopeeItems, tiktokItems, setTiktokItems }) {
+function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, tiktokItems, setTiktokItems }) {
   const [queueTab, setQueueTab] = useState(platform||"shopee");
+  const [dbLoading, setDbLoading] = useState(false);
   const videoRefs = useRef({});
-
   const items = queueTab==="shopee"?shopeeItems:tiktokItems;
   const setItems = queueTab==="shopee"?setShopeeItems:setTiktokItems;
 
-  const addItem = () => { if(items.length>=10) return alert("เพิ่มได้สูงสุด 10 รายการครับ"); setItems(prev=>[...prev,{id:Date.now(),videoFile:null,videoName:"",caption:"",status:"ready",queue:false,errorImg:""}]); };
-  const removeItem = (id) => { if(items.length<=1) return; setItems(prev=>prev.filter(i=>i.id!==id)); };
+  // โหลดจาก Supabase
+  useEffect(()=>{ loadFromDB(queueTab); },[queueTab]);
+  const loadFromDB = async (plat) => {
+    if (!isSupabaseConfigured) return;
+    setDbLoading(true);
+    try {
+      const { data, error } = await supabase.from("tasks").select("*").eq("user_key",licKey).eq("platform",plat).order("created_at",{ascending:true});
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(row=>({ id:row.id, videoName:row.video_name||"", caption:row.caption||"", status:row.status||"ready", queue:row.queue||false, errorImg:row.error_img||"", videoFile:null }));
+        if (plat==="shopee") setShopeeItems(mapped); else setTiktokItems(mapped);
+      }
+    } catch {}
+    setDbLoading(false);
+  };
+
+  const addItem = async () => {
+    if (items.length>=10) return alert("เพิ่มได้สูงสุด 10 รายการครับ");
+    let newId = `local-${Date.now()}`;
+    if (isSupabaseConfigured) {
+      try {
+        const { data } = await supabase.from("tasks").insert({ user_key:licKey, platform:queueTab, video_name:"", caption:"", status:"ready", queue:false }).select().single();
+        if (data) newId = data.id;
+      } catch {}
+    }
+    setItems(prev=>[...prev,{id:newId,videoFile:null,videoName:"",caption:"",status:"ready",queue:false,errorImg:""}]);
+  };
+
+  const removeItem = async (id) => {
+    if (items.length<=1) return;
+    setItems(prev=>prev.filter(i=>i.id!==id));
+    if (isSupabaseConfigured) { try { await supabase.from("tasks").delete().eq("id",id); } catch {} }
+  };
+
   const updateItem = (id,field,value) => { setItems(prev=>prev.map(i=>i.id===id?{...i,[field]:value}:i)); };
-  const handleVideoSelect = (id,e) => { const file=e.target.files?.[0]; if(!file) return; updateItem(id,"videoFile",file); updateItem(id,"videoName",file.name); };
-  const toggleQueue = (id) => { setItems(prev=>prev.map(i=>{ if(i.id!==id) return i; if(!i.videoName){alert("กรุณาเลือกคลิปวิดีโอก่อนครับ");return i;} return{...i,queue:!i.queue,status:!i.queue?"queued":"ready"}; })); };
-  const queueAll = () => { setItems(prev=>prev.map(i=>i.videoName?{...i,queue:true,status:"queued"}:i)); };
+
+  const saveItemToDB = async (id) => {
+    if (!isSupabaseConfigured) return;
+    const item = (queueTab==="shopee"?shopeeItems:tiktokItems).find(i=>i.id===id);
+    if (!item) return;
+    try {
+      await supabase.from("tasks").update({ caption:item.caption, video_name:item.videoName, status:item.status, queue:item.queue, updated_at:new Date().toISOString() }).eq("id",id);
+    } catch {}
+  };
+
+  const handleVideoSelect = (id,e) => {
+    const file=e.target.files?.[0]; if(!file) return;
+    updateItem(id,"videoFile",file); updateItem(id,"videoName",file.name);
+    setTimeout(()=>saveItemToDB(id),300);
+  };
+
+  const toggleQueue = async (id) => {
+    let updated;
+    setItems(prev=>prev.map(i=>{ if(i.id!==id) return i; if(!i.videoName){alert("กรุณาเลือกคลิปวิดีโอก่อนครับ");return i;} updated={...i,queue:!i.queue,status:!i.queue?"queued":"ready"}; return updated; }));
+    if (isSupabaseConfigured && updated) {
+      try { await supabase.from("tasks").update({ queue:updated.queue, status:updated.status, updated_at:new Date().toISOString() }).eq("id",id); } catch {}
+    }
+  };
+
+  const queueAll = async () => {
+    setItems(prev=>prev.map(i=>i.videoName?{...i,queue:true,status:"queued"}:i));
+    if (isSupabaseConfigured) {
+      try {
+        const ids = items.filter(i=>i.videoName).map(i=>i.id);
+        for (const id of ids) { await supabase.from("tasks").update({queue:true,status:"queued",updated_at:new Date().toISOString()}).eq("id",id); }
+      } catch {}
+    }
+  };
 
   const shareItem = async (item) => {
     if(!item.videoFile) return;
-    try { const file=item.videoFile instanceof File?item.videoFile:new File([item.videoFile],item.videoName,{type:"video/webm"}); if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"ClipAI Post",text:item.caption});}else{alert("อุปกรณ์ไม่รองรับการแชร์ไฟล์ กรุณาดาวน์โหลดและโพสเอง");} } catch {}
+    try {
+      const file=item.videoFile instanceof File?item.videoFile:new File([item.videoFile],item.videoName,{type:"video/webm"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:"ClipAI Post",text:item.caption});
+        updateItem(item.id,"status","done");
+        if (isSupabaseConfigured) { try { await supabase.from("tasks").update({status:"done",updated_at:new Date().toISOString()}).eq("id",item.id); } catch {} }
+      } else { alert("อุปกรณ์ไม่รองรับการแชร์ไฟล์ กรุณาดาวน์โหลดและโพสเอง"); }
+    } catch {}
   };
 
   const platformColor = queueTab==="shopee"?SHOPEE_RED:"#333";
@@ -639,6 +668,14 @@ function VideoQueueManager({ M, platform, shopeeItems, setShopeeItems, tiktokIte
         <button onClick={()=>setQueueTab("shopee")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="shopee"?SHOPEE_RED:"transparent",color:"#fff"}}>🧡 คิว Shopee ({shopeeItems.filter(i=>i.queue).length}/{shopeeItems.length})</button>
         <button onClick={()=>setQueueTab("tiktok")} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"13px",fontWeight:"bold",cursor:"pointer",background:queueTab==="tiktok"?"#222":"transparent",color:"#fff"}}>🖤 คิว TikTok ({tiktokItems.filter(i=>i.queue).length}/{tiktokItems.length})</button>
       </div>
+
+      {/* DB Status */}
+      <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",padding:"6px 10px",borderRadius:"8px",background:"rgba(255,255,255,0.03)"}}>
+        <div style={{width:"6px",height:"6px",borderRadius:"50%",background:isSupabaseConfigured?GREEN:SHOPEE_ORANGE}}/>
+        <span style={{color:isSupabaseConfigured?GREEN:SHOPEE_ORANGE}}>{isSupabaseConfigured?"บันทึกลง Supabase อัตโนมัติ":"ข้อมูลอยู่ใน RAM เท่านั้น"}</span>
+        {dbLoading&&<span style={{color:TEXT_MUTED,marginLeft:"auto"}}>⏳ กำลังโหลด...</span>}
+      </div>
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}}>
         {[["📋 ทั้งหมด",items.length,TEXT_MUTED],["⏳ ในคิว",items.filter(i=>i.queue).length,SHOPEE_ORANGE],["✅ พร้อม",items.filter(i=>!i.queue&&i.status==="ready").length,GREEN]].map(([label,val,color])=>(<div key={label} style={{background:"rgba(255,255,255,0.04)",borderRadius:"10px",padding:"10px",textAlign:"center",border:"1px solid rgba(255,255,255,0.07)"}}><div style={{fontSize:"20px",fontWeight:"800",color}}>{val}</div><div style={{fontSize:"10px",color:TEXT_MUTED}}>{label}</div></div>))}
       </div>
@@ -647,9 +684,13 @@ function VideoQueueManager({ M, platform, shopeeItems, setShopeeItems, tiktokIte
         <button onClick={queueAll} style={{flex:1,padding:"9px",borderRadius:"10px",border:"none",background:platformColor,color:"#fff",fontSize:"13px",fontWeight:"bold",cursor:"pointer"}}><Layers size={13} style={{display:"inline",marginRight:4}}/>ส่งทั้งหมดเข้าคิว</button>
       </div>
       {items.map((item,idx)=>(
-        <div key={item.id} style={{background:BG_CARD,borderRadius:"14px",padding:"14px",border:`1px solid ${item.queue?"rgba(245,166,35,0.4)":"rgba(255,255,255,0.07)"}`}}>
+        <div key={item.id} style={{background:BG_CARD,borderRadius:"14px",padding:"14px",border:`1px solid ${item.queue?"rgba(245,166,35,0.4)":item.status==="done"?"rgba(39,174,96,0.3)":"rgba(255,255,255,0.07)"}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
-            <div style={{fontSize:"13px",fontWeight:"700",color:item.queue?SHOPEE_ORANGE:TEXT_MAIN}}>{item.queue?"⏳":"📋"} รายการที่ {idx+1}{item.queue&&<span style={{fontSize:"10px",marginLeft:"6px",color:SHOPEE_ORANGE}}>(อยู่ในคิว)</span>}</div>
+            <div style={{fontSize:"13px",fontWeight:"700",color:item.status==="done"?GREEN:item.queue?SHOPEE_ORANGE:TEXT_MAIN}}>
+              {item.status==="done"?"✅":item.queue?"⏳":"📋"} รายการที่ {idx+1}
+              {item.queue&&<span style={{fontSize:"10px",marginLeft:"6px",color:SHOPEE_ORANGE}}>(อยู่ในคิว)</span>}
+              {item.status==="done"&&<span style={{fontSize:"10px",marginLeft:"6px",color:GREEN}}>(โพสแล้ว)</span>}
+            </div>
             <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
               {item.status==="failed"&&(<button onClick={()=>alert(`URL รูปพัง: ${item.errorImg}`)} style={{display:"flex",alignItems:"center",gap:"2px",background:"rgba(238,77,45,0.2)",color:"#FF8B8B",border:"1px solid rgba(238,77,45,0.4)",borderRadius:"4px",padding:"3px 7px",fontSize:"11px",cursor:"pointer"}}><Eye size={11}/> ดูรูปพัง</button>)}
               {items.length>1&&(<button onClick={()=>removeItem(item.id)} style={{background:"rgba(231,76,60,0.15)",border:"none",color:"#e74c3c",borderRadius:"6px",padding:"3px 8px",fontSize:"12px",cursor:"pointer"}}>✕ ลบ</button>)}
@@ -657,7 +698,7 @@ function VideoQueueManager({ M, platform, shopeeItems, setShopeeItems, tiktokIte
           </div>
           <input ref={el=>videoRefs.current[item.id]=el} type="file" accept="video/*" style={{display:"none"}} onChange={e=>handleVideoSelect(item.id,e)}/>
           <button onClick={()=>videoRefs.current[item.id]?.click()} style={{width:"100%",padding:"9px",borderRadius:"8px",border:`1px dashed ${item.videoName?"rgba(39,174,96,0.5)":"rgba(255,255,255,0.15)"}`,background:item.videoName?"rgba(39,174,96,0.07)":"rgba(255,255,255,0.03)",color:item.videoName?GREEN:TEXT_MUTED,fontSize:"12px",cursor:"pointer",marginBottom:"8px",textAlign:"left"}}>{item.videoName?`🎬 ${item.videoName}`:"📁 กดเลือกไฟล์วิดีโอ..."}</button>
-          <textarea placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..." value={item.caption} onChange={e=>updateItem(item.id,"caption",e.target.value)} rows={3} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"9px 12px",color:TEXT_MAIN,fontSize:"12px",outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif",marginBottom:"8px"}}/>
+          <textarea placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..." value={item.caption} onChange={e=>updateItem(item.id,"caption",e.target.value)} onBlur={()=>saveItemToDB(item.id)} rows={3} style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",padding:"9px 12px",color:TEXT_MAIN,fontSize:"12px",outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"'Segoe UI','Noto Sans Thai',sans-serif",marginBottom:"8px"}}/>
           <div style={{display:"flex",gap:"8px"}}>
             <button onClick={()=>toggleQueue(item.id)} style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontSize:"12px",fontWeight:"bold",cursor:"pointer",color:"#fff",background:item.queue?"#D35400":item.videoName?GREEN:"rgba(255,255,255,0.1)"}}>
               {item.queue?<><ArrowLeft size={12} style={{display:"inline",marginRight:4}}/>ดึงออกจากคิว</>:<>ส่งเข้าคิว {platformLabel} <ArrowRight size={12} style={{display:"inline",marginLeft:4}}/></>}
@@ -674,8 +715,7 @@ function ResultBox({ text, id, copied, onCopy, queueLabel }) {
   return (
     <div style={{background:"rgba(0,0,0,0.3)",borderRadius:"12px",padding:"14px",fontSize:"13px",lineHeight:"1.7",whiteSpace:"pre-wrap",color:TEXT_MAIN,marginTop:"10px",border:"1px solid rgba(255,255,255,0.07)",position:"relative",paddingRight:"130px"}}>
       {text}
-      <button style={{position:"absolute",top:"10px",right:"10px",background:copied===id?GREEN:"rgba(255,255,255,0.1)",border:"none",borderRadius:"6px",padding:"5px 10px",color:"#fff",fontSize:"11px",cursor:"pointer",fontWeight:"700",lineHeight:"1.4",textAlign:"center"}}
-        onClick={()=>onCopy(text,id)}>
+      <button style={{position:"absolute",top:"10px",right:"10px",background:copied===id?GREEN:"rgba(255,255,255,0.1)",border:"none",borderRadius:"6px",padding:"5px 10px",color:"#fff",fontSize:"11px",cursor:"pointer",fontWeight:"700",lineHeight:"1.4",textAlign:"center"}} onClick={()=>onCopy(text,id)}>
         {copied===id?`${queueLabel} ส่งคิวแล้ว!`:`📋 คัดลอก\n+ ส่งคิว`}
       </button>
     </div>
