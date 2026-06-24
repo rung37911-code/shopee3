@@ -93,7 +93,7 @@ async function callClaude(messages, systemPrompt = "", maxTokens = 1200) {
 }
 
 // ─── GEMINI API HELPER ────────────────────────────────────────────────────────
-async function callGemini(prompt, systemPrompt = "", model = "gemini-2.0-flash") {
+async function callGemini(prompt, systemPrompt = "", model = "gemini-2.5-flash") {
   const apiKey = localStorage.getItem("gemini_api_key") || "";
   if (!apiKey) throw new Error("ยังไม่ได้ตั้งค่า Gemini API Key — ไปตั้งค่าที่เมนู ตั้งค่าระบบ ก่อนครับ");
   const contents = [];
@@ -1123,7 +1123,7 @@ function SettingsComponent({ M, isBotRunning, botStatus, aiProvider, onProviderC
     setTestingGemini(true); setGeminiTestResult("⏳ กำลังทดสอบ...");
     try {
       localStorage.setItem("gemini_api_key", geminiKeyInput.trim());
-      const result = await callGemini("ตอบว่า 'Gemini พร้อมใช้งาน ✅' เท่านั้น", "", "gemini-2.0-flash");
+      const result = await callGemini("ตอบว่า 'Gemini พร้อมใช้งาน ✅' เท่านั้น", "", "gemini-2.5-flash");
       setGeminiTestResult(`✅ เชื่อมต่อสำเร็จ! ${result}`);
     } catch (e) {
       setGeminiTestResult(`❌ เกิดข้อผิดพลาด: ${e.message}`);
