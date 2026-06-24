@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Square, RefreshCw, Eye, ArrowRight, ArrowLeft, Layers, Settings, ListOrdered, FileText, Search } from "lucide-react";
+import { Play, Square, RefreshCw, Eye, ArrowRight, ArrowLeft, Layers, Settings, ListOrdered, FileText, Search, Sparkles, Video } from "lucide-react";
 
 // ─── ค่าคงที่ ─────────────────────────────────────────────────────────────────
 const SHOPEE_RED = "#EE4D2D";
@@ -11,6 +11,10 @@ const BG_CARD = "#13132A";
 const TEXT_MAIN = "#F0F0F0";
 const TEXT_MUTED = "#8A8AAA";
 const GREEN = "#27AE60";
+const GOOGLE_BLUE = "#4285F4";
+const GOOGLE_GREEN = "#34A853";
+const GEMINI_PURPLE = "#7C3AED";
+const GEMINI_PINK = "#EC4899";
 const ADMIN_PASSWORD = "admin1234";
 const DEMO_KEY = "SCL-MO-DEMO0001";
 const PRICE_MONTHLY = 299;
@@ -88,6 +92,57 @@ async function callClaude(messages, systemPrompt = "", maxTokens = 1200) {
   return data.content?.map(c => c.text || "").join("") || "";
 }
 
+// ─── GEMINI API HELPER ────────────────────────────────────────────────────────
+async function callGemini(prompt, systemPrompt = "", model = "gemini-2.0-flash") {
+  const apiKey = localStorage.getItem("gemini_api_key") || "";
+  if (!apiKey) throw new Error("ยังไม่ได้ตั้งค่า Gemini API Key — ไปตั้งค่าที่เมนู ตั้งค่าระบบ ก่อนครับ");
+  const contents = [];
+  if (systemPrompt) contents.push({ role: "user", parts: [{ text: `[System]: ${systemPrompt}\n\n${prompt}` }] });
+  else contents.push({ role: "user", parts: [{ text: prompt }] });
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents, generationConfig: { temperature: 0.9, maxOutputTokens: 1200 } }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+}
+
+// ─── GOOGLE VEO (VIDEO GENERATION) HELPER ─────────────────────────────────────
+// Veo 2 via Vertex AI / Gemini API — generates short product clips
+async function startVeoGeneration(prompt) {
+  const apiKey = localStorage.getItem("gemini_api_key") || "";
+  if (!apiKey) throw new Error("ต้องการ Gemini API Key สำหรับ Google Veo");
+  // Veo 2 via Gemini Developer API (preview endpoint)
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      instances: [{ prompt }],
+      parameters: { aspectRatio: "9:16", sampleCount: 1, durationSeconds: 8 },
+    }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.name; // operation name for polling
+}
+
+async function pollVeoOperation(operationName) {
+  const apiKey = localStorage.getItem("gemini_api_key") || "";
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data; // { done, response: { videos: [{ uri, encoding }] } }
+}
+
+// ─── AI PROVIDER SELECTOR ────────────────────────────────────────────────────
+// ใช้สลับระหว่าง Claude ↔ Gemini สำหรับ text generation
+async function callAIProvider(prompt, provider = "claude", systemPrompt = "") {
+  if (provider === "gemini") return callGemini(prompt, systemPrompt);
+  return callClaude([{ role: "user", content: prompt }], systemPrompt);
+}
+
 // ─── TTS HELPER ───────────────────────────────────────────────────────────────
 function speakText(text, onEnd) {
   if (!window.speechSynthesis) { onEnd?.(); return; }
@@ -143,7 +198,7 @@ function LoginScreen({ onSuccess }) {
       <div style={S.logoWrap}><div style={{ fontSize: "40px" }}>🚀</div><div style={S.logoText}>ClipAI<span style={{ color: SHOPEE_ORANGE }}>Master</span></div><div style={S.logoSub}>ระบบสร้างคลิปปักตะกร้า + แคปชั่น อัตโนมัติ (Shopee & TikTok)</div></div>
       <div style={S.tabRow}><button style={S.tab(mode === "user")} onClick={() => { setMode("user"); setErr(""); }}>🔑 เข้าใช้งาน</button><button style={S.tab(mode === "admin")} onClick={() => { setMode("admin"); setErr(""); }}>⚙️ Admin</button></div>
       {mode === "user" ? (<><label style={S.label}>License Key</label><input style={S.input} placeholder="SCL-MO-XXXXXXXX" value={keyVal} onChange={e => setKeyVal(e.target.value)} onKeyDown={e => e.key === "Enter" && doUserLogin()} /><div style={S.hint}>* Key ได้รับจากผู้ขาย</div><div style={{ fontSize: "12px", color: SHOPEE_ORANGE, marginBottom: "12px", cursor: "pointer" }} onClick={() => setKeyVal(DEMO_KEY)}>🧪 กดเพื่อใส่ Demo Key ทดสอบ</div>{err && <div style={S.err}>{err}</div>}<button style={S.btn} onClick={doUserLogin} disabled={loading}>{loading ? "กำลังตรวจสอบ..." : "เข้าใช้งาน →"}</button></>) : (<><label style={S.label}>รหัสผ่าน Admin</label><input style={S.input} type="password" placeholder="••••••••" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && doAdminLogin()} />{err && <div style={S.err}>{err}</div>}<button style={S.btn} onClick={doAdminLogin}>เข้า Admin Panel →</button></>)}
-      <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: "rgba(255,255,255,0.25)" }}>ClipAIMaster v3.0 • Scanner + AI Video</div>
+      <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: "rgba(255,255,255,0.25)" }}>ClipAIMaster v3.0 • Scanner + AI Video + Google Veo</div>
     </div></div>
   );
 }
@@ -247,8 +302,8 @@ function AdminPanel({ onLogout }) {
   );
 }
 
-// ─── PRODUCT SCANNER (ใหม่) ───────────────────────────────────────────────────
-function ProductScanner({ onProductFound, platform }) {
+// ─── PRODUCT SCANNER ──────────────────────────────────────────────────────────
+function ProductScanner({ onProductFound, platform, aiProvider }) {
   const [tab, setTab] = useState("url");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -277,16 +332,15 @@ function ProductScanner({ onProductFound, platform }) {
 
   const scanUrl = async () => {
     if (!url.trim()) return;
-    setLoading(true); setStatus("🔍 Claude กำลังอ่านข้อมูลสินค้าจาก URL...");
+    setLoading(true); setStatus(`🔍 ${aiProvider === "gemini" ? "Gemini" : "Claude"} กำลังอ่านข้อมูลสินค้าจาก URL...`);
     const platformHint = url.includes("shopee") ? "Shopee" : url.includes("tiktok") ? "TikTok Shop" : platform;
-    await parseAIResult(callClaude([{
-      role: "user",
-      content: `URL สินค้า ${platformHint}: ${url}\n\nวิเคราะห์และตอบ JSON เท่านั้น:\n{"name":"ชื่อสินค้า","price":"ราคา (ตัวเลข)","discount":"ส่วนลด%","category":"หมวดหมู่","description":"คำบรรยาย 2-3 ประโยคภาษาไทย","keywords":["kw1","kw2","kw3"],"platform":"${platformHint}"}`
-    }], "", 600));
+    const prompt = `URL สินค้า ${platformHint}: ${url}\n\nวิเคราะห์และตอบ JSON เท่านั้น:\n{"name":"ชื่อสินค้า","price":"ราคา (ตัวเลข)","discount":"ส่วนลด%","category":"หมวดหมู่","description":"คำบรรยาย 2-3 ประโยคภาษาไทย","keywords":["kw1","kw2","kw3"],"platform":"${platformHint}"}`;
+    await parseAIResult(callAIProvider(prompt, aiProvider));
   };
 
   const scanImage = async (base64, mimeType = "image/jpeg") => {
     setLoading(true); setStatus("🔍 AI กำลังวิเคราะห์รูปสินค้า...");
+    // Image scan always uses Claude (Gemini image scan needs different flow)
     await parseAIResult(callClaude([{
       role: "user",
       content: [
@@ -334,7 +388,7 @@ function ProductScanner({ onProductFound, platform }) {
         <>
           <input style={M.input} placeholder="วาง URL สินค้า Shopee หรือ TikTok Shop..." value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === "Enter" && scanUrl()} />
           <button style={{ ...M.btnS, opacity: loading ? 0.6 : 1 }} onClick={scanUrl} disabled={loading}>
-            {loading ? "⏳ กำลังดึงข้อมูล..." : "🔍 สแกน URL ด้วย AI"}
+            {loading ? "⏳ กำลังดึงข้อมูล..." : `🔍 สแกน URL ด้วย ${aiProvider === "gemini" ? "Gemini" : "Claude"}`}
           </button>
         </>
       )}
@@ -358,7 +412,6 @@ function ProductScanner({ onProductFound, platform }) {
               <button style={{ flex: 1, padding: "11px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.06)", color: TEXT_MUTED, cursor: "pointer", fontSize: 13 }} onClick={stopCamera}>✕ ปิดกล้อง</button>
             </div>
           }
-          <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 6 }}>จ่อกล้องที่บาร์โค้ดหรือตัวสินค้า แล้วกดถ่ายภาพ</div>
         </>
       )}
 
@@ -393,9 +446,190 @@ function ProductScanner({ onProductFound, platform }) {
   );
 }
 
-// ─── AI VIDEO GENERATOR (ใหม่) ────────────────────────────────────────────────
+// ─── GOOGLE VEO VIDEO GENERATOR ──────────────────────────────────────────────
+function GoogleVeoGenerator({ M, product, price, disc, platform, onVideoReady }) {
+  const [veoPrompt, setVeoPrompt] = useState("");
+  const [veoStyle, setVeoStyle] = useState("product_showcase");
+  const [veoStatus, setVeoStatus] = useState("idle"); // idle | generating | polling | done | error
+  const [veoProgress, setVeoProgress] = useState(0);
+  const [veoLog, setVeoLog] = useState([]);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [operationName, setOperationName] = useState("");
+  const pollRef = useRef(null);
+
+  // สร้าง prompt อัตโนมัติจากข้อมูลสินค้า
+  const VEO_STYLES = [
+    { id: "product_showcase", label: "🛍️ โชว์สินค้า", suffix: "clean white background, product rotating slowly, studio lighting, professional e-commerce style" },
+    { id: "lifestyle", label: "🌟 ไลฟ์สไตล์", suffix: "lifestyle shot, natural lighting, modern Thai home setting, person using product, warm tones" },
+    { id: "unboxing", label: "📦 Unboxing", suffix: "unboxing video style, hands opening packaging, close-up detail shots, excitement energy" },
+    { id: "review", label: "⭐ รีวิว", suffix: "review-style video, talking head + product close-up, TikTok vertical format, engaging presenter" },
+  ];
+
+  useEffect(() => {
+    if (product) {
+      const style = VEO_STYLES.find(s => s.id === veoStyle);
+      setVeoPrompt(`Thai e-commerce product video for "${product}"${price ? `, priced at ${price} baht` : ""}${disc ? `, ${disc}% discount` : ""}. ${style?.suffix || ""}. Vertical 9:16 format for ${platform === "shopee" ? "Shopee" : "TikTok"} affiliate clip. High quality, engaging, 8 seconds.`);
+    }
+  }, [product, price, disc, platform, veoStyle]);
+
+  const addLog = (msg) => setVeoLog(prev => [...prev, `[${new Date().toLocaleTimeString("th-TH")}] ${msg}`]);
+
+  const startGeneration = async () => {
+    if (!veoPrompt.trim()) { alert("กรุณาใส่ prompt ก่อนครับ"); return; }
+    const geminiKey = localStorage.getItem("gemini_api_key") || "";
+    if (!geminiKey) { alert("ต้องการ Gemini API Key สำหรับ Google Veo — ไปตั้งค่าที่เมนู ตั้งค่าระบบ"); return; }
+
+    setVeoStatus("generating"); setVeoProgress(5); setVeoLog([]);
+    addLog("ส่ง prompt ไปยัง Google Veo 2...");
+
+    try {
+      const opName = await startVeoGeneration(veoPrompt);
+      setOperationName(opName);
+      addLog(`Operation เริ่มต้นแล้ว: ${opName}`);
+      addLog("รอผลการสร้างวิดีโอ... (ประมาณ 1-3 นาที)");
+      setVeoStatus("polling");
+      startPolling(opName);
+    } catch (e) {
+      addLog(`❌ เกิดข้อผิดพลาด: ${e.message}`);
+      setVeoStatus("error");
+    }
+  };
+
+  const startPolling = (opName) => {
+    let attempts = 0;
+    const maxAttempts = 40; // 40 × 5s = 3.3 minutes
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      const pct = Math.min(90, 5 + attempts * 2);
+      setVeoProgress(pct);
+      addLog(`ตรวจสอบสถานะ... (ครั้งที่ ${attempts}/${maxAttempts})`);
+      try {
+        const result = await pollVeoOperation(opName);
+        if (result.done) {
+          clearInterval(pollRef.current);
+          const videoData = result.response?.predictions?.[0];
+          if (videoData?.bytesBase64Encoded) {
+            // Convert base64 to blob
+            const bytes = atob(videoData.bytesBase64Encoded);
+            const arr = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+            const blob = new Blob([arr], { type: "video/mp4" });
+            const url = URL.createObjectURL(blob);
+            setVideoUrl(url);
+            setVeoStatus("done");
+            setVeoProgress(100);
+            addLog("✅ สร้างวิดีโอสำเร็จ! พร้อมดาวน์โหลดและเพิ่มในคิว");
+            await onVideoReady(blob, `veo-${Date.now()}.mp4`);
+          } else {
+            addLog("❌ ไม่พบข้อมูลวิดีโอในผลลัพธ์");
+            setVeoStatus("error");
+          }
+        }
+      } catch (e) {
+        addLog(`⚠️ ตรวจสอบสถานะล้มเหลว: ${e.message}`);
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(pollRef.current);
+        addLog("❌ หมดเวลารอ (timeout) ลองใหม่อีกครั้ง");
+        setVeoStatus("error");
+      }
+    }, 5000);
+  };
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  const statusColor = { idle: TEXT_MUTED, generating: SHOPEE_ORANGE, polling: GOOGLE_BLUE, done: GREEN, error: "#e74c3c" };
+  const statusLabel = { idle: "รอเริ่มต้น", generating: "กำลังส่ง prompt...", polling: "กำลังสร้างวิดีโอ...", done: "สำเร็จ!", error: "เกิดข้อผิดพลาด" };
+
+  return (
+    <div style={M.card}>
+      {/* Header badge */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${GOOGLE_BLUE}, ${GOOGLE_GREEN})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>G</div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_MAIN }}>Google Veo 2 Video Generator</div>
+          <div style={{ fontSize: 10, color: TEXT_MUTED }}>สร้างคลิปจาก AI ด้วย Gemini API • ต้องการ Gemini API Key</div>
+        </div>
+        <div style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: statusColor[veoStatus] }}>{statusLabel[veoStatus]}</div>
+      </div>
+
+      {/* Style selector */}
+      <div style={{ marginBottom: 10 }}>
+        <label style={M.label}>สไตล์วิดีโอ</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {VEO_STYLES.map(st => (
+            <button key={st.id} style={{ padding: "8px 10px", borderRadius: 8, border: veoStyle === st.id ? `2px solid ${GOOGLE_BLUE}` : "1px solid rgba(255,255,255,0.1)", background: veoStyle === st.id ? "rgba(66,133,244,0.12)" : "rgba(255,255,255,0.03)", color: veoStyle === st.id ? TEXT_MAIN : TEXT_MUTED, fontSize: 12, fontWeight: veoStyle === st.id ? 700 : 400, cursor: "pointer", textAlign: "left" }} onClick={() => setVeoStyle(st.id)}>{st.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Prompt editor */}
+      <label style={M.label}>Prompt (แก้ไขได้)</label>
+      <textarea
+        value={veoPrompt}
+        onChange={e => setVeoPrompt(e.target.value)}
+        rows={4}
+        style={{ width: "100%", background: "rgba(66,133,244,0.06)", border: "1px solid rgba(66,133,244,0.25)", borderRadius: 10, padding: "10px 14px", color: TEXT_MAIN, fontSize: 12, outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", lineHeight: 1.6, marginBottom: 10 }}
+        placeholder="อธิบายวิดีโอที่ต้องการสร้าง (ภาษาอังกฤษได้ผลดีกว่า)"
+      />
+
+      {/* Progress */}
+      {veoStatus !== "idle" && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
+            <div style={{ height: "100%", background: `linear-gradient(90deg,${GOOGLE_BLUE},${GOOGLE_GREEN})`, borderRadius: 3, width: `${veoProgress}%`, transition: "width 0.5s" }} />
+          </div>
+          <div ref={el => { if (el) el.scrollTop = el.scrollHeight; }} style={{ background: "#000", borderRadius: 8, padding: "8px 10px", height: 80, overflowY: "auto", fontFamily: "monospace", fontSize: 10, lineHeight: 1.6, border: "1px solid rgba(255,255,255,0.06)" }}>
+            {veoLog.map((l, i) => <div key={i} style={{ color: l.includes("✅") ? GREEN : l.includes("❌") ? "#e74c3c" : TEXT_MUTED }}>{l}</div>)}
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {(veoStatus === "idle" || veoStatus === "error") && (
+        <button
+          style={{ ...M.btnP, background: `linear-gradient(135deg,${GOOGLE_BLUE},${GOOGLE_GREEN})`, marginTop: 0 }}
+          onClick={startGeneration}
+        >
+          🎬 สร้างคลิป AI ด้วย Google Veo 2
+        </button>
+      )}
+
+      {veoStatus === "polling" && (
+        <button style={{ ...M.btnP, background: "rgba(255,255,255,0.1)", cursor: "not-allowed", marginTop: 0 }} disabled>
+          ⏳ กำลังสร้างวิดีโอ... {veoProgress}%
+        </button>
+      )}
+
+      {/* Result */}
+      {veoStatus === "done" && videoUrl && (
+        <div style={{ marginTop: 12 }}>
+          <video src={videoUrl} controls playsInline style={{ width: "100%", maxWidth: 220, display: "block", margin: "0 auto 12px", borderRadius: 10 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <a href={videoUrl} download={`veo-${Date.now()}.mp4`} style={{ flex: 1, display: "block", textAlign: "center", background: `linear-gradient(135deg,${GOOGLE_BLUE},${GOOGLE_GREEN})`, color: "#fff", borderRadius: 10, padding: "11px", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
+              💾 ดาวน์โหลด MP4
+            </a>
+            <button style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", background: GREEN, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }} onClick={() => { setVeoStatus("idle"); setVideoUrl(""); setVeoProgress(0); setVeoLog([]); }}>
+              🔄 สร้างใหม่
+            </button>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11, color: GREEN, background: "rgba(39,174,96,0.08)", border: "1px solid rgba(39,174,96,0.2)", borderRadius: 8, padding: "7px 10px" }}>
+            ✅ เพิ่มในคิวโพสต์อัตโนมัติแล้ว — ไปดูที่แท็บ คิวงาน
+          </div>
+        </div>
+      )}
+
+      {/* Note */}
+      <div style={{ marginTop: 10, fontSize: 10, color: TEXT_MUTED, lineHeight: 1.6, padding: "8px 10px", background: "rgba(66,133,244,0.04)", borderRadius: 8, border: "1px solid rgba(66,133,244,0.1)" }}>
+        💡 Veo 2 ต้องการ Gemini API Key ที่มีสิทธิ์ใช้งาน video generation (Preview) • ดู quota ที่ Google AI Studio • วิดีโอ 8 วินาที 9:16
+      </div>
+    </div>
+  );
+}
+
+// ─── AI VIDEO GENERATOR (เพิ่ม Google Veo tab) ────────────────────────────────
 function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, platform, onVideoReady }) {
-  const [mode, setMode] = useState("ai"); // ai | classic | upload
+  const [mode, setMode] = useState("ai"); // ai | veo | classic | upload
   const [images, setImages] = useState([]);
   const [secPerImg, setSecPerImg] = useState(2.5);
   const [overlayText, setOverlayText] = useState("");
@@ -405,7 +639,6 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
   const [videoBlob, setVideoBlob] = useState(null);
   const [videoFileName, setVideoFileName] = useState("clip-output.webm");
   const [shareMsg, setShareMsg] = useState("");
-  // AI mode state
   const [aiStyle, setAiStyle] = useState("hype");
   const [segments, setSegments] = useState([]);
   const [scriptReady, setScriptReady] = useState(false);
@@ -421,11 +654,7 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
     if (!overlayText && product) setOverlayText(`${product}${price ? ` | ${price} บาท` : ""}${disc ? ` ลด ${disc}%` : ""}`);
   }, [product, price, disc]);
 
-  const AI_STYLES = [
-    { id: "hype", label: "🔥 ไฟแรง" },
-    { id: "calm", label: "😌 สงบนุ่ม" },
-    { id: "story", label: "📖 เล่าเรื่อง" },
-  ];
+  const AI_STYLES = [{ id: "hype", label: "🔥 ไฟแรง" }, { id: "calm", label: "😌 สงบนุ่ม" }, { id: "story", label: "📖 เล่าเรื่อง" }];
 
   const handleFiles = (e) => {
     const files = Array.from(e.target.files || []).slice(0, 10);
@@ -433,7 +662,6 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
   };
   const removeImage = (idx) => setImages(prev => prev.filter((_, i) => i !== idx));
 
-  // ── เจน script AI ──────────────────────────────────────────────────────────
   const generateAIScript = async () => {
     if (!product) { alert("กรุณากรอกชื่อสินค้าก่อนครับ"); return; }
     setLoadingScript(true);
@@ -448,116 +676,59 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
       const parsed = JSON.parse(clean);
       setSegments(parsed.segments || []);
       setScriptReady(true);
-    } catch (e) {
-      alert("เกิดข้อผิดพลาด: " + e.message);
-    }
+    } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
     setLoadingScript(false);
   };
 
-  const testTTS = (text) => {
-    setTtsPlaying(true);
-    speakText(text, () => setTtsPlaying(false));
-  };
+  const testTTS = (text) => { setTtsPlaying(true); speakText(text, () => setTtsPlaying(false)); };
 
-  // ── render video (ใช้ได้ทั้ง AI mode และ classic mode) ──────────────────────
   const renderVideo = async (useAIScript = false) => {
     if (images.length === 0) { alert("กรุณาเพิ่มรูปสินค้าอย่างน้อย 1 รูปครับ"); return; }
     setIsRendering(true); setProgress(0); setVideoUrl(""); setShareMsg("");
-
     const W = 720, H = 1280;
     const canvas = canvasRef.current;
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext("2d");
-
     const loaded = await Promise.all(images.map(img => new Promise(res => {
       const el = new Image(); el.onload = () => res(el); el.onerror = () => res(null); el.src = img.url;
     })));
-
-    // กำหนด segments — ถ้า AI mode ใช้ segments ที่เจนไว้ ไม่งั้นใช้ classic
-    const segs = (useAIScript && segments.length > 0)
-      ? segments
-      : loaded.map(() => ({ text: overlayText, duration: secPerImg }));
-
+    const segs = (useAIScript && segments.length > 0) ? segments : loaded.map(() => ({ text: overlayText, duration: secPerImg }));
     const totalDuration = segs.reduce((sum, s) => sum + (s.duration || secPerImg), 0) * 1000;
-
     const stream = canvas.captureStream(30); const chunks = [];
     let mime = "video/webm;codecs=vp9"; if (!MediaRecorder.isTypeSupported(mime)) mime = "video/webm";
     const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     const stopped = new Promise(res => { recorder.onstop = res; });
     recorder.start();
-
     let lastSegIdx = -1;
-
     await new Promise(resolveAll => {
       const startTime = performance.now();
       function frame() {
         const elapsed = performance.now() - startTime;
-
-        // หา segment ปัจจุบัน
         let acc = 0, segIdx = 0;
         for (let i = 0; i < segs.length; i++) {
           const segMs = (segs[i].duration || secPerImg) * 1000;
           if (elapsed < acc + segMs) { segIdx = i; break; }
-          acc += segMs;
-          segIdx = Math.min(i, segs.length - 1);
+          acc += segMs; segIdx = Math.min(i, segs.length - 1);
         }
-
-        // TTS เมื่อเปลี่ยน segment
-        if (useAIScript && ttsEnabled && segIdx !== lastSegIdx) {
-          lastSegIdx = segIdx;
-          speakText(segs[segIdx]?.text || "", null);
-        }
-
+        if (useAIScript && ttsEnabled && segIdx !== lastSegIdx) { lastSegIdx = segIdx; speakText(segs[segIdx]?.text || "", null); }
         const imgIdx = Math.min(segIdx, loaded.length - 1);
         const img = loaded[imgIdx];
         const segMs = (segs[segIdx]?.duration || secPerImg) * 1000;
         const localT = acc > 0 ? Math.max(0, (elapsed - acc) / segMs) : (elapsed % segMs) / segMs;
         const scale = 1 + 0.12 * localT;
-
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-        if (img) {
-          const iw = img.width, ih = img.height;
-          const targetRatio = W / H, imgRatio = iw / ih;
-          let dw, dh;
-          if (imgRatio > targetRatio) { dh = H * scale; dw = dh * imgRatio; }
-          else { dw = W * scale; dh = dw / imgRatio; }
-          ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-        }
-
-        const grad = ctx.createLinearGradient(0, H * 0.6, 0, H);
-        grad.addColorStop(0, "rgba(0,0,0,0)"); grad.addColorStop(1, "rgba(0,0,0,0.8)");
-        ctx.fillStyle = grad; ctx.fillRect(0, H * 0.6, W, H * 0.4);
-
-        // ข้อความ
+        if (img) { const iw = img.width, ih = img.height; const targetRatio = W / H, imgRatio = iw / ih; let dw, dh; if (imgRatio > targetRatio) { dh = H * scale; dw = dh * imgRatio; } else { dw = W * scale; dh = dw / imgRatio; } ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh); }
+        const grad = ctx.createLinearGradient(0, H * 0.6, 0, H); grad.addColorStop(0, "rgba(0,0,0,0)"); grad.addColorStop(1, "rgba(0,0,0,0.8)"); ctx.fillStyle = grad; ctx.fillRect(0, H * 0.6, W, H * 0.4);
         const displayText = useAIScript ? (segs[segIdx]?.text || "") : overlayText;
-        if (displayText) {
-          ctx.fillStyle = "#fff"; ctx.font = "bold 42px 'Segoe UI', sans-serif";
-          ctx.textAlign = "center"; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8;
-          wrapText(ctx, displayText, W / 2, H - 200, W - 80, 52);
-          ctx.shadowBlur = 0;
-        }
-
-        if (price) {
-          ctx.fillStyle = platform === "shopee" ? SHOPEE_RED : "#FF0050";
-          ctx.fillRect(W / 2 - 140, H - 110, 280, 64);
-          ctx.fillStyle = "#fff"; ctx.font = "bold 36px 'Segoe UI', sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(`${price} บาท${disc ? ` (-${disc}%)` : ""}`, W / 2, H - 66);
-        }
-
-        // progress bar
-        const pct = elapsed / totalDuration;
-        ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(0, 0, W, 5);
-        ctx.fillStyle = platform === "shopee" ? SHOPEE_RED : TIKTOK_CYAN;
-        ctx.fillRect(0, 0, W * pct, 5);
-
+        if (displayText) { ctx.fillStyle = "#fff"; ctx.font = "bold 42px 'Segoe UI', sans-serif"; ctx.textAlign = "center"; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8; wrapText(ctx, displayText, W / 2, H - 200, W - 80, 52); ctx.shadowBlur = 0; }
+        if (price) { ctx.fillStyle = platform === "shopee" ? SHOPEE_RED : "#FF0050"; ctx.fillRect(W / 2 - 140, H - 110, 280, 64); ctx.fillStyle = "#fff"; ctx.font = "bold 36px 'Segoe UI', sans-serif"; ctx.textAlign = "center"; ctx.fillText(`${price} บาท${disc ? ` (-${disc}%)` : ""}`, W / 2, H - 66); }
+        const pct = elapsed / totalDuration; ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(0, 0, W, 5); ctx.fillStyle = platform === "shopee" ? SHOPEE_RED : TIKTOK_CYAN; ctx.fillRect(0, 0, W * pct, 5);
         setProgress(Math.min(100, Math.round(pct * 100)));
         if (elapsed < totalDuration) requestAnimationFrame(frame); else resolveAll();
       }
       requestAnimationFrame(frame);
     });
-
     recorder.stop(); await stopped;
     window.speechSynthesis?.cancel();
     const blob = new Blob(chunks, { type: mime }); const fname = `clip-${Date.now()}.webm`;
@@ -570,7 +741,7 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
     const file = e.target.files?.[0]; if (!file) return;
     setVideoBlob(file); setVideoFileName(file.name); setVideoUrl(URL.createObjectURL(file));
     await onVideoReady(file, file.name);
-    setShareMsg("เพิ่มคลิปลงคิวงานอัตโนมัติแล้ว! กดแท็บ คิวงาน & บอท เพื่อดู");
+    setShareMsg("เพิ่มคลิปลงคิวงานอัตโนมัติแล้ว!");
   };
 
   const shareVideo = async () => {
@@ -578,10 +749,8 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
     const captionText = captionForVideo || `${product} ราคา ${price} บาท`;
     try {
       const file = new File([videoBlob], videoFileName, { type: videoBlob.type });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: "ClipAI Post", text: captionText });
-        setShareMsg("เรียกหน้ารายการโพสต์สำเร็จ");
-      } else { setShareMsg("อุปกรณ์ไม่รองรับการแชร์ไฟล์ ให้ดาวน์โหลดแล้วไปอัปโหลดเองครับ"); }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "ClipAI Post", text: captionText }); setShareMsg("เรียกหน้ารายการโพสต์สำเร็จ"); }
+      else { setShareMsg("อุปกรณ์ไม่รองรับการแชร์ไฟล์"); }
     } catch { setShareMsg("เกิดข้อผิดพลาดในการส่งไฟล์"); }
   };
 
@@ -593,84 +762,54 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
     lines.forEach((l, i) => ctx.fillText(l.trim(), x, startY + i * lineHeight));
   }
 
+  const MODES = [
+    { id: "ai", label: "🤖 AI Script" },
+    { id: "veo", label: "✨ Google Veo" },
+    { id: "classic", label: "🖼️ Classic" },
+    { id: "upload", label: "📁 อัปโหลด" },
+  ];
+
   return (
     <div>
-      {/* Mode tabs */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-        <button style={M.tab(mode === "ai")} onClick={() => setMode("ai")}>🤖 AI Script + TTS</button>
-        <button style={M.tab(mode === "classic")} onClick={() => setMode("classic")}>🖼️ Classic รูป</button>
-        <button style={M.tab(mode === "upload")} onClick={() => setMode("upload")}>📁 ดึงคลิปจากเครื่อง</button>
+      {/* Mode selector */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 12 }}>
+        {MODES.map(m => (
+          <button key={m.id} style={{ padding: "9px 4px", borderRadius: 10, border: mode === m.id ? (m.id === "veo" ? `2px solid ${GOOGLE_BLUE}` : `2px solid ${SHOPEE_ORANGE}`) : "1px solid rgba(255,255,255,0.1)", background: mode === m.id ? (m.id === "veo" ? "rgba(66,133,244,0.12)" : "rgba(238,77,45,0.12)") : "rgba(255,255,255,0.03)", color: mode === m.id ? TEXT_MAIN : TEXT_MUTED, fontSize: 11, fontWeight: mode === m.id ? 700 : 400, cursor: "pointer" }} onClick={() => setMode(m.id)}>{m.label}</button>
+        ))}
       </div>
 
-      {/* AI Mode */}
+      {/* Google Veo Mode */}
+      {mode === "veo" && (
+        <GoogleVeoGenerator M={M} product={product} price={price} disc={disc} platform={platform} onVideoReady={onVideoReady} />
+      )}
+
+      {/* AI Script Mode */}
       {mode === "ai" && (
         <div style={M.card}>
           <div style={M.cardT}>🤖 AI Video + เสียงพากย์ภาษาไทย</div>
-
-          {/* สไตล์ */}
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            {AI_STYLES.map(st => (
-              <button key={st.id} style={{ flex: 1, padding: "9px 6px", borderRadius: 8, border: aiStyle === st.id ? `2px solid ${SHOPEE_ORANGE}` : "1px solid rgba(255,255,255,0.1)", background: aiStyle === st.id ? "rgba(245,166,35,0.1)" : "rgba(255,255,255,0.03)", color: aiStyle === st.id ? TEXT_MAIN : TEXT_MUTED, fontSize: 12, fontWeight: aiStyle === st.id ? 700 : 400, cursor: "pointer" }} onClick={() => setAiStyle(st.id)}>{st.label}</button>
-            ))}
+            {AI_STYLES.map(st => (<button key={st.id} style={{ flex: 1, padding: "9px 6px", borderRadius: 8, border: aiStyle === st.id ? `2px solid ${SHOPEE_ORANGE}` : "1px solid rgba(255,255,255,0.1)", background: aiStyle === st.id ? "rgba(245,166,35,0.1)" : "rgba(255,255,255,0.03)", color: aiStyle === st.id ? TEXT_MAIN : TEXT_MUTED, fontSize: 12, fontWeight: aiStyle === st.id ? 700 : 400, cursor: "pointer" }} onClick={() => setAiStyle(st.id)}>{st.label}</button>))}
           </div>
-
-          {/* รูป */}
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleFiles} />
           <button style={M.btnS} onClick={() => fileInputRef.current?.click()} disabled={expired}>📷 เพิ่มรูปสินค้า ({images.length}/10)</button>
-          {images.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, marginBottom: 8 }}>
-              {images.map((img, i) => (
-                <div key={i} style={{ position: "relative", width: 54, height: 76, borderRadius: 6, overflow: "hidden" }}>
-                  <img src={img.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
-                  <button style={{ position: "absolute", top: 0, right: 0, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", padding: "1px 4px", fontSize: 10, cursor: "pointer" }} onClick={() => removeImage(i)}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* TTS toggle */}
+          {images.length > 0 && (<div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, marginBottom: 8 }}>{images.map((img, i) => (<div key={i} style={{ position: "relative", width: 54, height: 76, borderRadius: 6, overflow: "hidden" }}><img src={img.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" /><button style={{ position: "absolute", top: 0, right: 0, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", padding: "1px 4px", fontSize: 10, cursor: "pointer" }} onClick={() => removeImage(i)}>✕</button></div>))}</div>)}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", marginBottom: 12 }}>
-            <div onClick={() => setTtsEnabled(p => !p)} style={{ width: 40, height: 22, borderRadius: 11, background: ttsEnabled ? GREEN : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
-              <div style={{ position: "absolute", top: 3, left: ttsEnabled ? 21 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: TEXT_MAIN, fontWeight: 600 }}>🎙️ เสียงพากย์ TTS ภาษาไทย</div>
-              <div style={{ fontSize: 10, color: TEXT_MUTED }}>Web Speech API — พากย์เสียงตามสคริปต์</div>
-            </div>
+            <div onClick={() => setTtsEnabled(p => !p)} style={{ width: 40, height: 22, borderRadius: 11, background: ttsEnabled ? GREEN : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}><div style={{ position: "absolute", top: 3, left: ttsEnabled ? 21 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} /></div>
+            <div style={{ flex: 1 }}><div style={{ fontSize: 12, color: TEXT_MAIN, fontWeight: 600 }}>🎙️ เสียงพากย์ TTS ภาษาไทย</div><div style={{ fontSize: 10, color: TEXT_MUTED }}>Web Speech API</div></div>
           </div>
-
           {!scriptReady ? (
-            <button style={{ ...M.btnP, opacity: (loadingScript || expired) ? 0.6 : 1 }} onClick={generateAIScript} disabled={loadingScript || expired}>
-              {loadingScript ? "⏳ Claude กำลังเขียนสคริปต์..." : "🤖 เจนสคริปต์ AI → เรนเดอร์วิดีโอ"}
-            </button>
+            <button style={{ ...M.btnP, opacity: (loadingScript || expired) ? 0.6 : 1 }} onClick={generateAIScript} disabled={loadingScript || expired}>{loadingScript ? "⏳ Claude กำลังเขียนสคริปต์..." : "🤖 เจนสคริปต์ AI → เรนเดอร์วิดีโอ"}</button>
           ) : (
             <>
-              {/* แสดง segments */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>📋 สคริปต์ AI ({segments.length} ซีน) — แก้ไขได้</div>
-                {segments.map((seg, i) => (
-                  <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", marginBottom: 5 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: SHOPEE_RED, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{i + 1}</div>
-                    <textarea value={seg.text} onChange={e => setSegments(prev => prev.map((s, j) => j === i ? { ...s, text: e.target.value } : s))} rows={2} style={{ flex: 1, background: "transparent", border: "none", color: TEXT_MAIN, fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box" }} />
-                    <button onClick={() => testTTS(seg.text)} disabled={ttsPlaying} style={{ padding: "3px 7px", borderRadius: 5, border: "none", background: "rgba(255,255,255,0.08)", color: TEXT_MUTED, fontSize: 10, cursor: "pointer", flexShrink: 0 }}>🔊</button>
-                  </div>
-                ))}
-                <button style={{ ...M.btnP, marginTop: 4, opacity: (isRendering || images.length === 0) ? 0.6 : 1 }} onClick={() => renderVideo(true)} disabled={isRendering || images.length === 0}>
-                  {isRendering ? `🎬 เรนเดอร์ + พากย์เสียง ${progress}%` : "🎬 เรนเดอร์วิดีโอ AI"}
-                </button>
+                <div style={{ fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>📋 สคริปต์ AI ({segments.length} ซีน)</div>
+                {segments.map((seg, i) => (<div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", padding: "7px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", marginBottom: 5 }}><div style={{ width: 22, height: 22, borderRadius: "50%", background: SHOPEE_RED, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{i + 1}</div><textarea value={seg.text} onChange={e => setSegments(prev => prev.map((s, j) => j === i ? { ...s, text: e.target.value } : s))} rows={2} style={{ flex: 1, background: "transparent", border: "none", color: TEXT_MAIN, fontSize: 12, resize: "none", outline: "none", fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box" }} /><button onClick={() => testTTS(seg.text)} disabled={ttsPlaying} style={{ padding: "3px 7px", borderRadius: 5, border: "none", background: "rgba(255,255,255,0.08)", color: TEXT_MUTED, fontSize: 10, cursor: "pointer", flexShrink: 0 }}>🔊</button></div>))}
+                <button style={{ ...M.btnP, marginTop: 4, opacity: (isRendering || images.length === 0) ? 0.6 : 1 }} onClick={() => renderVideo(true)} disabled={isRendering || images.length === 0}>{isRendering ? `🎬 เรนเดอร์ ${progress}%` : "🎬 เรนเดอร์วิดีโอ AI"}</button>
                 <button style={{ width: "100%", padding: "8px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: TEXT_MUTED, fontSize: 12, cursor: "pointer", marginTop: 6 }} onClick={() => { setScriptReady(false); setSegments([]); }}>↩ เจนสคริปต์ใหม่</button>
               </div>
             </>
           )}
-
-          {isRendering && (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ height: "100%", background: `linear-gradient(90deg,${SHOPEE_RED},${SHOPEE_ORANGE})`, borderRadius: 3, width: `${progress}%`, transition: "width 0.3s" }} />
-              </div>
-              <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, textAlign: "center" }}>เรนเดอร์ + พากย์เสียง... {progress}%</div>
-            </div>
-          )}
+          {isRendering && (<div style={{ marginTop: 8 }}><div style={{ height: 5, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", background: `linear-gradient(90deg,${SHOPEE_RED},${SHOPEE_ORANGE})`, borderRadius: 3, width: `${progress}%`, transition: "width 0.3s" }} /></div><div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 4, textAlign: "center" }}>เรนเดอร์... {progress}%</div></div>)}
           <canvas ref={canvasRef} style={{ display: "none" }} />
         </div>
       )}
@@ -681,25 +820,14 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
           <div style={M.cardT}>🖼️ ทำคลิปจากรูป (Classic)</div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleFiles} />
           <button style={M.btnS} onClick={() => fileInputRef.current?.click()} disabled={expired}>📷 อัปโหลดรูปสินค้า (สูงสุด 10 รูป)</button>
-          {images.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
-              {images.map((img, i) => (
-                <div key={i} style={{ position: "relative", width: "60px", height: "85px", borderRadius: "6px", overflow: "hidden" }}>
-                  <img src={img.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" />
-                  <button style={{ position: "absolute", top: 0, right: 0, background: "#000", color: "#fff", border: "none" }} onClick={() => removeImage(i)}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
+          {images.length > 0 && (<div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>{images.map((img, i) => (<div key={i} style={{ position: "relative", width: "60px", height: "85px", borderRadius: "6px", overflow: "hidden" }}><img src={img.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="" /><button style={{ position: "absolute", top: 0, right: 0, background: "#000", color: "#fff", border: "none" }} onClick={() => removeImage(i)}>✕</button></div>))}</div>)}
           <div style={{ marginTop: "14px" }}>
-            <label style={M.label}>ความเร็วขยับภาพ (วินาที / รูป)</label>
+            <label style={M.label}>วินาที / รูป</label>
             <input style={M.input} type="number" value={secPerImg} onChange={e => setSecPerImg(Number(e.target.value))} />
-            <label style={M.label}>ตัวอักษรพาดหัววิดีโอ</label>
+            <label style={M.label}>ตัวอักษรพาดหัว</label>
             <input style={M.input} value={overlayText} onChange={e => setOverlayText(e.target.value)} />
           </div>
-          <button style={{ ...M.btnP, opacity: (isRendering || expired) ? 0.7 : 1 }} onClick={() => renderVideo(false)} disabled={isRendering || images.length === 0}>
-            {isRendering ? `กำลังเรนเดอร์... ${progress}%` : "🎬 กดเริ่มเรนเดอร์คลิป"}
-          </button>
+          <button style={{ ...M.btnP, opacity: (isRendering || expired) ? 0.7 : 1 }} onClick={() => renderVideo(false)} disabled={isRendering || images.length === 0}>{isRendering ? `เรนเดอร์... ${progress}%` : "🎬 เริ่มเรนเดอร์คลิป"}</button>
           <canvas ref={canvasRef} style={{ display: "none" }} />
         </div>
       )}
@@ -707,19 +835,19 @@ function AIVideoGenerator({ M, expired, product, price, disc, captionForVideo, p
       {/* Upload mode */}
       {mode === "upload" && (
         <div style={M.card}>
-          <div style={M.cardT}>📁 โหลดไฟล์ที่มีอยู่แล้วเข้าสู่ระบบ</div>
+          <div style={M.cardT}>📁 โหลดไฟล์คลิปเข้าสู่ระบบ</div>
           <input ref={videoFileInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={handleVideoFile} />
-          <button style={M.btnS} onClick={() => videoFileInputRef.current?.click()}>📁 เลือกคลิปวิดีโอ</button>
+          <button style={M.btnS} onClick={() => videoFileInputRef.current?.click()}>📁 เลือกไฟล์วิดีโอ</button>
         </div>
       )}
 
-      {/* Preview */}
-      {videoUrl && (
+      {/* Preview (for non-veo modes) */}
+      {videoUrl && mode !== "veo" && (
         <div style={M.card}>
           <div style={M.cardT}>🎥 ตัวอย่างวิดีโอ</div>
           <video src={videoUrl} controls playsInline style={{ width: "100%", maxWidth: "220px", display: "block", margin: "0 auto", borderRadius: "10px" }} />
-          <button style={{ ...M.btnP, marginTop: "14px" }} onClick={shareVideo}>📲 สั่งแชร์ไฟล์ไปยังแอปมือถือ</button>
-          <a href={videoUrl} download={videoFileName} style={{ display: "block", textAlign: "center", marginTop: "8px", background: "rgba(255,255,255,0.08)", color: TEXT_MAIN, borderRadius: "10px", padding: "11px", textDecoration: "none", fontSize: "14px", fontWeight: "bold" }}>💾 บันทึกลงเครื่องมือถือ</a>
+          <button style={{ ...M.btnP, marginTop: "14px" }} onClick={shareVideo}>📲 แชร์ไปยังแอปมือถือ</button>
+          <a href={videoUrl} download={videoFileName} style={{ display: "block", textAlign: "center", marginTop: "8px", background: "rgba(255,255,255,0.08)", color: TEXT_MAIN, borderRadius: "10px", padding: "11px", textDecoration: "none", fontSize: "14px", fontWeight: "bold" }}>💾 บันทึกลงเครื่อง</a>
           {shareMsg && <div style={{ marginTop: "10px", fontSize: "12px", background: "rgba(39,174,96,0.1)", border: "1px solid rgba(39,174,96,0.3)", padding: "8px", borderRadius: "6px", color: GREEN }}>{shareMsg}</div>}
         </div>
       )}
@@ -749,21 +877,20 @@ function MainApp({ sess, onLogout }) {
   const [botStatus, setBotStatus] = useState("Idle");
   const [shopeeItems, setShopeeItems] = useState([{ id: "init-1", videoFile: null, videoName: "", caption: "", link: "", status: "ready", queue: false, errorImg: "" }]);
   const [tiktokItems, setTiktokItems] = useState([{ id: "init-2", videoFile: null, videoName: "", caption: "", link: "", status: "ready", queue: false, errorImg: "" }]);
+  // AI Provider state — shared across tabs
+  const [aiProvider, setAiProvider] = useState(() => localStorage.getItem("ai_provider") || "claude");
   const expired = isExpired(keyInfo || {});
   const dl = daysLeft(keyInfo?.expiresAt);
+
+  const switchProvider = (p) => { setAiProvider(p); localStorage.setItem("ai_provider", p); };
 
   const handleToggleBot = () => {
     if (isBotRunning) { setBotStatus("Stopping"); setTimeout(() => { setIsBotRunning(false); setBotStatus("Idle"); }, 1500); }
     else { setIsBotRunning(true); setBotStatus("Running"); }
   };
 
-  // ── ProductScanner callback ────────────────────────────────────────────────
   const handleProductFound = (data) => {
-    setProduct(data.name || "");
-    setPrice(data.price || "");
-    setDisc(data.discount || "");
-    setLink(data.link || "");
-    setPage("content");
+    setProduct(data.name || ""); setPrice(data.price || ""); setDisc(data.discount || ""); setLink(data.link || ""); setPage("content");
   };
 
   const genTemplate = () => {
@@ -776,7 +903,7 @@ function MainApp({ sess, onLogout }) {
   const callAI = async (prompt, setFn, setLoad) => {
     setLoad(true);
     try {
-      const result = await callClaude([{ role: "user", content: prompt }]);
+      const result = await callAIProvider(prompt, aiProvider);
       setFn(result);
     } catch (e) { setFn(`เกิดข้อผิดพลาด: ${e.message}`); }
     setLoad(false);
@@ -827,12 +954,7 @@ function MainApp({ sess, onLogout }) {
 
   const renderContent = () => {
     switch (page) {
-      case "scan": return (
-        <>
-          <ProductScanner onProductFound={handleProductFound} platform={platform} />
-          <div style={{ textAlign: "center", padding: "8px 0 4px", color: TEXT_MUTED, fontSize: 11 }}>— หรือกรอกข้อมูลสินค้าด้วยตนเองในหน้า เขียนโพสต์ —</div>
-        </>
-      );
+      case "scan": return <ProductScanner onProductFound={handleProductFound} platform={platform} aiProvider={aiProvider} />;
       case "content": return (
         <>
           <div style={M.card}>
@@ -843,58 +965,62 @@ function MainApp({ sess, onLogout }) {
               <div style={{ flex: 1 }}><label style={M.label}>ราคา (บาท) *</label><input style={M.input} type="number" placeholder="299" value={price} onChange={e => setPrice(e.target.value)} /></div>
               <div style={{ flex: 1 }}><label style={M.label}>ลด (%)</label><input style={M.input} type="number" placeholder="20" value={disc} onChange={e => setDisc(e.target.value)} /></div>
             </div>
-            <label style={M.label}>ลิงก์สินค้า ({platform === "shopee" ? "Shopee" : "TikTok Shop"})</label>
+            <label style={M.label}>ลิงก์สินค้า</label>
             <input style={{ ...M.input, marginBottom: 0 }} placeholder="วางลิงก์ปักหมุดที่นี่..." value={link} onChange={e => setLink(e.target.value)} />
           </div>
           <div style={M.card}>
             <div style={M.cardT}>✍️ สร้างแคปชั่นขายของ</div>
             <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-              <button style={M.tab(activeTab === "template")} onClick={() => setActiveTab("template")}>📋 ใช้เทมเพลต</button>
-              <button style={M.tab(activeTab === "ai")} onClick={() => setActiveTab("ai")}>🤖 ส่งให้ AI แต่ง</button>
+              <button style={M.tab(activeTab === "template")} onClick={() => setActiveTab("template")}>📋 เทมเพลต</button>
+              <button style={M.tab(activeTab === "ai")} onClick={() => setActiveTab("ai")}>
+                <span style={{ marginRight: 4 }}>{aiProvider === "gemini" ? "✨" : "🤖"}</span>
+                {aiProvider === "gemini" ? "Gemini AI" : "Claude AI"}
+              </button>
             </div>
             {activeTab === "template" && (<>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>{TEMPLATES.map(t => (<button key={t.id} style={M.tmplBtn(tmpl === t.id)} onClick={() => setTmpl(t.id)}>{t.name}</button>))}</div>
-              <label style={M.label}>เลือกคำขึ้นต้น (Hook)</label>
+              <label style={M.label}>Hook ขึ้นต้น</label>
               <div style={{ marginBottom: "8px" }}>{HOOKS.slice(0, 4).map(h => (<span key={h} style={M.chip} onClick={() => setHook(h)}>{h}</span>))}</div>
               <input style={M.input} placeholder="หรือพิมพ์ hook เอง..." value={hook} onChange={e => setHook(e.target.value)} />
-              <button style={M.btnP} onClick={genTemplate} disabled={expired}>✨ สั่งเจเนอเรตแคปชั่น</button>
+              <button style={M.btnP} onClick={genTemplate} disabled={expired}>✨ เจนแคปชั่น</button>
               {captionTmpl && <ResultBox text={captionTmpl} id="tmpl" copied={copied} onCopy={copyAndSendToQueue} queueLabel={platform === "shopee" ? "🧡 Shopee" : "🖤 TikTok"} />}
             </>)}
             {activeTab === "ai" && (<>
-              <button style={{ ...M.btnP, opacity: aiLoading ? 0.7 : 1 }} onClick={genAI} disabled={aiLoading || expired}>{aiLoading ? "AI กำลังเขียนให้..." : "🤖 กดปุ่มให้ AI เจนแคปชั่นพิเศษ"}</button>
+              <button style={{ ...M.btnP, opacity: aiLoading ? 0.7 : 1, background: aiProvider === "gemini" ? `linear-gradient(135deg,${GEMINI_PURPLE},${GEMINI_PINK})` : `linear-gradient(135deg,${SHOPEE_RED},#C0392B)` }} onClick={genAI} disabled={aiLoading || expired}>
+                {aiLoading ? "AI กำลังเขียนให้..." : `${aiProvider === "gemini" ? "✨ Gemini" : "🤖 Claude"} เจนแคปชั่นพิเศษ`}
+              </button>
               {captionAi && <ResultBox text={captionAi} id="ai" copied={copied} onCopy={copyAndSendToQueue} queueLabel={platform === "shopee" ? "🧡 Shopee" : "🖤 TikTok"} />}
             </>)}
           </div>
           {(captionTmpl || captionAi) && (
             <div style={M.card}>
-              <div style={M.cardT}>🤖 ส่งข้อมูลเข้าคิวงานออโต้บอท (Supabase)</div>
-              <button
-                onClick={async () => {
-                  if (!product || !price) { alert("กรุณากรอกชื่อสินค้าและราคาก่อนส่งเข้าคิวครับ"); return; }
-                  try {
-                    const finalCaption = activeTab === "template" ? captionTmpl : captionAi;
-                    const { error } = await supabase.from("tasks").insert([{ platform, user_key: licKey, video_path: link || "", link: link || "", caption: finalCaption, product_name: product, status: "pending" }]);
-                    if (error) throw error;
-                    alert("ส่งข้อมูลสินค้าและแคปชั่นเข้าคิวสำเร็จ! บอทในมือถือดึงงานไปโพสต์ได้แล้วครับ");
-                  } catch (err) { alert("ส่งข้อมูลเข้าคิวล้มเหลว: " + err.message); }
-                }}
-                style={{ width: "100%", background: `linear-gradient(135deg,${SHOPEE_ORANGE},#D35400)`, color: "#fff", border: "none", borderRadius: "10px", padding: "14px", fontSize: "15px", fontWeight: "800", cursor: "pointer", boxShadow: "0 4px 15px rgba(245,166,35,0.3)" }}
-              >
-                🚀 ส่งงานชิ้นนี้เข้าคิวบอทมือถือ ({platform === "shopee" ? "Shopee" : "TikTok"})
+              <div style={M.cardT}>🤖 ส่งข้อมูลเข้าคิวงานบอท</div>
+              <button onClick={async () => {
+                if (!product || !price) { alert("กรุณากรอกชื่อสินค้าและราคาก่อน"); return; }
+                try {
+                  const finalCaption = activeTab === "template" ? captionTmpl : captionAi;
+                  const { error } = await supabase.from("tasks").insert([{ platform, user_key: licKey, video_path: link || "", link: link || "", caption: finalCaption, product_name: product, status: "pending" }]);
+                  if (error) throw error;
+                  alert("ส่งข้อมูลสินค้าและแคปชั่นเข้าคิวสำเร็จ!");
+                } catch (err) { alert("ส่งเข้าคิวล้มเหลว: " + err.message); }
+              }} style={{ width: "100%", background: `linear-gradient(135deg,${SHOPEE_ORANGE},#D35400)`, color: "#fff", border: "none", borderRadius: "10px", padding: "14px", fontSize: "15px", fontWeight: "800", cursor: "pointer" }}>
+                🚀 ส่งงานเข้าคิวบอทมือถือ ({platform === "shopee" ? "Shopee" : "TikTok"})
               </button>
               <div style={{ fontSize: "11px", color: TEXT_MUTED, marginTop: "8px", textAlign: "center" }}>บันทึกแคปชั่น + ข้อมูลสินค้าลง Supabase รอบอทดึงไปโพสต์</div>
             </div>
           )}
           <div style={M.card}>
-            <div style={M.cardT}>🎬 สคริปต์พูดในคลิปสั้น (AI)</div>
-            <button style={{ ...M.btnS, opacity: scriptLoading ? 0.7 : 1 }} onClick={genScript} disabled={scriptLoading || expired}>{scriptLoading ? "AI กำลังเรียบเรียงสคริปต์..." : "🎬 สร้างสคริปต์สั้น 15-30 วิ"}</button>
-            {script && (<div style={{ marginTop: "12px" }}><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "6px" }}><button style={{ background: "rgba(255,255,255,0.08)", border: "none", color: TEXT_MUTED, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer" }} onClick={() => { navigator.clipboard.writeText(script); setCopied("scr"); setTimeout(() => setCopied(""), 2000); }}>{copied === "scr" ? "คัดลอกแล้ว" : "📋 คัดลอกสคริปต์"}</button></div><div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "12px", padding: "14px", fontSize: "12px", lineHeight: "1.8", whiteSpace: "pre-wrap", color: TEXT_MAIN, border: "1px solid rgba(255,255,255,0.07)", maxHeight: "280px", overflowY: "auto" }}>{script}</div></div>)}
+            <div style={M.cardT}>🎬 สคริปต์พูดในคลิปสั้น</div>
+            <button style={{ ...M.btnS, opacity: scriptLoading ? 0.7 : 1, background: aiProvider === "gemini" ? `linear-gradient(135deg,${GEMINI_PURPLE},${GEMINI_PINK})` : `linear-gradient(135deg,${SHOPEE_ORANGE},#E67E22)` }} onClick={genScript} disabled={scriptLoading || expired}>
+              {scriptLoading ? "AI กำลังเรียบเรียงสคริปต์..." : `${aiProvider === "gemini" ? "✨ Gemini" : "🎬 Claude"} สร้างสคริปต์ 15-30 วิ`}
+            </button>
+            {script && (<div style={{ marginTop: "12px" }}><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "6px" }}><button style={{ background: "rgba(255,255,255,0.08)", border: "none", color: TEXT_MUTED, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer" }} onClick={() => { navigator.clipboard.writeText(script); setCopied("scr"); setTimeout(() => setCopied(""), 2000); }}>{copied === "scr" ? "คัดลอกแล้ว" : "📋 คัดลอก"}</button></div><div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "12px", padding: "14px", fontSize: "12px", lineHeight: "1.8", whiteSpace: "pre-wrap", color: TEXT_MAIN, border: "1px solid rgba(255,255,255,0.07)", maxHeight: "280px", overflowY: "auto" }}>{script}</div></div>)}
           </div>
         </>
       );
       case "video": return <AIVideoGenerator M={M} expired={expired} product={product} price={price} disc={disc} captionForVideo={captionTmpl || captionAi} platform={platform} onVideoReady={sendVideoToQueue} />;
       case "queue": return <VideoQueueManager M={M} platform={platform} licKey={licKey} shopeeItems={shopeeItems} setShopeeItems={setShopeeItems} tiktokItems={tiktokItems} setTiktokItems={setTiktokItems} />;
-      case "settings": return <SettingsComponent M={M} isBotRunning={isBotRunning} botStatus={botStatus} />;
+      case "settings": return <SettingsComponent M={M} isBotRunning={isBotRunning} botStatus={botStatus} aiProvider={aiProvider} onProviderChange={switchProvider} />;
       default: return null;
     }
   };
@@ -908,40 +1034,44 @@ function MainApp({ sess, onLogout }) {
             <div style={M.logo}>🚀 ClipAI<span style={{ color: platform === "shopee" ? SHOPEE_ORANGE : TIKTOK_CYAN }}>{platform === "shopee" ? "Shopee" : "TikTok"}</span>
               <span style={{ fontSize: 11, fontWeight: 400, color: "rgba(255,255,255,0.4)", marginLeft: 6 }}>v3.0</span>
             </div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}>สแกนสินค้า • เจนแคปชั่น • AI Video + TTS</div>
+            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}>สแกนสินค้า • Gemini • Google Veo • AI Video</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ textAlign: "right" }}><div style={{ fontSize: "10px", color: TEXT_MUTED }}>Bot Master Status</div><div style={{ fontSize: "13px", fontWeight: "bold", color: botStatus === "Running" ? "#27AE60" : botStatus === "Stopping" ? "#F5A623" : "#FF6B6B" }}>{botStatus}</div></div>
-            <button onClick={handleToggleBot} disabled={botStatus === "Stopping"} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: isBotRunning ? "#E74C3C" : "#27AE60", color: "#fff", opacity: botStatus === "Stopping" ? 0.6 : 1 }}>
-              {botStatus === "Stopping" ? <><RefreshCw style={{ width: "14px", height: "14px" }} />กำลังหยุด...</> : isBotRunning ? <><Square style={{ width: "14px", height: "14px" }} />ปิดบอทระบบ</> : <><Play style={{ width: "14px", height: "14px" }} />เปิดบอทระบบ</>}
+            <div style={{ textAlign: "right" }}><div style={{ fontSize: "10px", color: TEXT_MUTED }}>Bot Status</div><div style={{ fontSize: "13px", fontWeight: "bold", color: botStatus === "Running" ? GREEN : botStatus === "Stopping" ? SHOPEE_ORANGE : "#FF6B6B" }}>{botStatus}</div></div>
+            <button onClick={handleToggleBot} disabled={botStatus === "Stopping"} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: isBotRunning ? "#E74C3C" : GREEN, color: "#fff", opacity: botStatus === "Stopping" ? 0.6 : 1 }}>
+              {botStatus === "Stopping" ? <><RefreshCw style={{ width: "14px", height: "14px" }} />หยุด...</> : isBotRunning ? <><Square style={{ width: "14px", height: "14px" }} />ปิดบอท</> : <><Play style={{ width: "14px", height: "14px" }} />เปิดบอท</>}
             </button>
           </div>
         </div>
-        <div style={{ position: "relative", zIndex: 1, marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-          <div style={{ display: "flex", gap: "6px" }}>
+
+        {/* AI Provider selector — แสดงใน header */}
+        <div style={{ position: "relative", zIndex: 1, marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             <span style={M.badge()}>{licKey}</span>
             <span style={M.badge(expired ? "#e74c3c" : GREEN)}>{expired ? "หมดอายุ" : keyInfo?.type === "lifetime" ? "ตลอดชีพ" : `เหลือ ${dl} วัน`}</span>
-            <span style={{ ...M.badge(), cursor: "pointer" }} onClick={onLogout}>ออกจากระบบ</span>
+            <span style={{ ...M.badge(), cursor: "pointer" }} onClick={onLogout}>ออก</span>
           </div>
-          <div style={{ display: "flex", background: "rgba(0,0,0,0.4)", padding: "4px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <button onClick={() => { setPlatform("shopee"); setCaptionTmpl(""); setCaptionAi(""); setScript(""); }} style={{ padding: "6px 14px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: platform === "shopee" ? SHOPEE_RED : "transparent", color: "#fff" }}>🧡 Shopee</button>
-            <button onClick={() => { setPlatform("tiktok"); setCaptionTmpl(""); setCaptionAi(""); setScript(""); }} style={{ padding: "6px 14px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: platform === "tiktok" ? "#fff" : "transparent", color: platform === "tiktok" ? "#000" : "#fff" }}>🖤 TikTok</button>
+          <div style={{ display: "flex", background: "rgba(0,0,0,0.4)", padding: "3px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.1)", gap: 3 }}>
+            <button onClick={() => setPlatform("shopee")} style={{ padding: "5px 12px", borderRadius: "7px", border: "none", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: platform === "shopee" ? SHOPEE_RED : "transparent", color: "#fff" }}>🧡 Shopee</button>
+            <button onClick={() => setPlatform("tiktok")} style={{ padding: "5px 12px", borderRadius: "7px", border: "none", fontSize: "11px", fontWeight: "bold", cursor: "pointer", background: platform === "tiktok" ? "#fff" : "transparent", color: platform === "tiktok" ? "#000" : "#fff" }}>🖤 TikTok</button>
           </div>
+        </div>
+
+        {/* AI Provider pill */}
+        <div style={{ position: "relative", zIndex: 1, marginTop: 8, display: "flex", gap: 4 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", marginRight: 4 }}>AI Engine:</div>
+          {[["claude", "🤖 Claude", SHOPEE_RED], ["gemini", "✨ Gemini", GEMINI_PURPLE]].map(([id, label, color]) => (
+            <button key={id} style={{ padding: "3px 10px", borderRadius: 20, border: aiProvider === id ? `1.5px solid ${color}` : "1.5px solid rgba(255,255,255,0.15)", background: aiProvider === id ? `${color}33` : "rgba(255,255,255,0.05)", color: aiProvider === id ? "#fff" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: aiProvider === id ? 700 : 400, cursor: "pointer" }} onClick={() => switchProvider(id)}>{label}</button>
+          ))}
         </div>
       </div>
 
-      <div style={{ margin: "14px auto 0", maxWidth: "600px", padding: "0 14px" }}>
-        <div style={{ background: platform === "shopee" ? "rgba(238,77,45,0.1)" : "rgba(255,255,255,0.05)", border: `1px solid ${platform === "shopee" ? SHOPEE_ORANGE : "#fff"}30`, padding: "10px", borderRadius: "10px", fontSize: "12px", textAlign: "center" }}>
-          {platform === "shopee" ? "🧡 ระบบทำงานในโหมด Shopee Affiliate" : "🖤 ระบบทำงานในโหมด TikTok Affiliate"}
-        </div>
-      </div>
-
-      {/* Nav tabs — เพิ่ม สแกนสินค้า */}
+      {/* Nav */}
       <div style={{ display: "flex", gap: "4px", padding: "12px 14px 0", maxWidth: "600px", margin: "0 auto", flexWrap: "wrap" }}>
         <button style={M.tab(page === "scan")} onClick={() => setPage("scan")}><Search size={13} style={{ marginRight: 3 }} />สแกน</button>
-        <button style={M.tab(page === "content")} onClick={() => setPage("content")}><FileText size={13} style={{ marginRight: 3 }} />เขียนโพสต์</button>
-        <button style={M.tab(page === "video")} onClick={() => setPage("video")}>🎬 AI วิดีโอ</button>
-        <button style={M.tab(page === "queue")} onClick={() => setPage("queue")}><ListOrdered size={13} style={{ marginRight: 3 }} />คิวงาน</button>
+        <button style={M.tab(page === "content")} onClick={() => setPage("content")}><FileText size={13} style={{ marginRight: 3 }} />โพสต์</button>
+        <button style={M.tab(page === "video")} onClick={() => setPage("video")}>🎬 วิดีโอ</button>
+        <button style={M.tab(page === "queue")} onClick={() => setPage("queue")}><ListOrdered size={13} style={{ marginRight: 3 }} />คิว</button>
         <button style={M.tab(page === "settings")} onClick={() => setPage("settings")}><Settings size={13} style={{ marginRight: 3 }} />ตั้งค่า</button>
       </div>
 
@@ -950,19 +1080,23 @@ function MainApp({ sess, onLogout }) {
   );
 }
 
-// ─── SETTINGS ─────────────────────────────────────────────────────────────────
-function SettingsComponent({ M, isBotRunning, botStatus }) {
+// ─── SETTINGS (เพิ่ม Gemini API Key + AI Provider selector) ──────────────────
+function SettingsComponent({ M, isBotRunning, botStatus, aiProvider, onProviderChange }) {
   const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem("anthropic_api_key") || "");
+  const [geminiKeyInput, setGeminiKeyInput] = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [tiktokSession, setTiktokSession] = useState(() => localStorage.getItem("tiktok_session") || "");
   const [shopeeSession, setShopeeSession] = useState(() => localStorage.getItem("shopee_session") || "");
   const [delayInput, setDelayInput] = useState(() => localStorage.getItem("post_delay") || "60");
   const [autoRetry, setAutoRetry] = useState(true);
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [agentLogs, setAgentLogs] = useState(["[ระบบ] Agent พร้อมทำงาน รอการเชื่อมต่อ..."]);
+  const [testingGemini, setTestingGemini] = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState("");
   const logRef = useRef(null);
+
   useEffect(() => {
     if (!agentEnabled) return;
-    const msgs = ["กำลังเชื่อมต่อกับ Shopee API...", "ตรวจสอบ Session Token...", "เชื่อมต่อสำเร็จ พร้อมรับคำสั่ง", "ตรวจสอบคิวงาน...", "ไม่พบงานในคิว กำลังรอ...", "Heartbeat OK (ping 42ms)", "กำลังโหลดคิวจาก Supabase...", "คิวว่าง รอคำสั่งถัดไป..."];
+    const msgs = ["กำลังเชื่อมต่อกับ Shopee API...", "ตรวจสอบ Session Token...", "เชื่อมต่อสำเร็จ พร้อมรับคำสั่ง", "ตรวจสอบคิวงาน...", "Heartbeat OK"];
     let i = 0;
     const interval = setInterval(() => {
       const msg = msgs[i % msgs.length];
@@ -970,65 +1104,132 @@ function SettingsComponent({ M, isBotRunning, botStatus }) {
       setAgentLogs(prev => [...prev.slice(-19), `[${time}] ${msg}`]);
       i++;
     }, 2500);
-    setAgentLogs(prev => [...prev, `[${new Date().toLocaleTimeString("th-TH")}] Agent เริ่มทำงานแล้ว`]);
     return () => clearInterval(interval);
   }, [agentEnabled]);
+
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [agentLogs]);
+
   const saveSettings = () => {
     localStorage.setItem("anthropic_api_key", apiKeyInput.trim());
+    localStorage.setItem("gemini_api_key", geminiKeyInput.trim());
     localStorage.setItem("tiktok_session", tiktokSession.trim());
     localStorage.setItem("shopee_session", shopeeSession.trim());
     localStorage.setItem("post_delay", delayInput);
-    alert("บันทึกการตั้งค่าระบบเรียบร้อยแล้วครับ!");
+    alert("บันทึกการตั้งค่าเรียบร้อยแล้วครับ!");
   };
+
+  const testGeminiKey = async () => {
+    if (!geminiKeyInput.trim()) { setGeminiTestResult("❌ กรุณากรอก Gemini API Key ก่อน"); return; }
+    setTestingGemini(true); setGeminiTestResult("⏳ กำลังทดสอบ...");
+    try {
+      localStorage.setItem("gemini_api_key", geminiKeyInput.trim());
+      const result = await callGemini("ตอบว่า 'Gemini พร้อมใช้งาน ✅' เท่านั้น", "", "gemini-2.0-flash");
+      setGeminiTestResult(`✅ เชื่อมต่อสำเร็จ! ${result}`);
+    } catch (e) {
+      setGeminiTestResult(`❌ เกิดข้อผิดพลาด: ${e.message}`);
+    }
+    setTestingGemini(false);
+  };
+
+  const API_PROVIDERS = [
+    { id: "claude", label: "🤖 Claude (Anthropic)", color: SHOPEE_RED, desc: "เจนแคปชั่น, สคริปต์, สแกน URL/รูป" },
+    { id: "gemini", label: "✨ Gemini (Google)", color: GEMINI_PURPLE, desc: "เจนแคปชั่น, สคริปต์ + Google Veo Video" },
+  ];
+
   return (
     <div>
+      {/* AI Provider Setting */}
       <div style={M.card}>
-        <div style={M.cardT}>⚙️ ตั้งค่าคีย์แอปพลิเคชัน & AI</div>
-        <label style={M.label}>Anthropic API Key (ใช้ทุกฟีเจอร์ AI + สแกนสินค้า + AI Video)</label>
-        <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} />
-        <div style={{ background: "rgba(245,166,35,0.07)", border: "1px solid rgba(245,166,35,0.2)", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: SHOPEE_ORANGE, marginBottom: 12 }}>
-          💡 API Key นี้ใช้กับ: สแกน URL/รูป, เจนแคปชั่น AI, เจนสคริปต์คลิป, AI Video Generator
+        <div style={M.cardT}>🤖 เลือก AI Engine หลัก</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          {API_PROVIDERS.map(p => (
+            <div key={p.id} style={{ padding: "12px", borderRadius: 12, border: aiProvider === p.id ? `2px solid ${p.color}` : "1px solid rgba(255,255,255,0.1)", background: aiProvider === p.id ? `${p.color}18` : "rgba(255,255,255,0.03)", cursor: "pointer" }} onClick={() => onProviderChange(p.id)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: aiProvider === p.id ? p.color : "rgba(255,255,255,0.2)" }} />
+                <div style={{ fontSize: 12, fontWeight: 700, color: aiProvider === p.id ? TEXT_MAIN : TEXT_MUTED }}>{p.label}</div>
+              </div>
+              <div style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.5 }}>{p.desc}</div>
+            </div>
+          ))}
         </div>
-        <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-          <h3 style={{ fontSize: "15px", fontWeight: "600", color: TEXT_MAIN, margin: "0 0 4px" }}>ตั้งค่าบอทอัปโหลด & ผูกบัญชี</h3>
-          <p style={{ fontSize: "11px", color: TEXT_MUTED, margin: "0 0 12px" }}>จัดการคีย์การเชื่อมต่อและหน่วงเวลาการทำงานอัตโนมัติ</p>
-          <div style={{ background: "rgba(238,77,45,0.07)", border: "1px solid rgba(238,77,45,0.2)", borderRadius: "10px", padding: "12px", marginBottom: "10px" }}>
-            <label style={{ ...M.label, color: SHOPEE_ORANGE, fontWeight: "700" }}>🧡 Shopee Session / Cookie</label>
-            <input type="password" placeholder="วาง Shopee Session ID หรือ Cookie ที่นี่" value={shopeeSession} onChange={e => setShopeeSession(e.target.value)} style={M.input} />
+        <div style={{ fontSize: 11, color: TEXT_MUTED, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+          💡 Claude ใช้ Anthropic API Key • Gemini + Google Veo ใช้ Gemini API Key เดียวกัน
+        </div>
+      </div>
+
+      {/* API Keys */}
+      <div style={M.card}>
+        <div style={M.cardT}>⚙️ API Keys & การตั้งค่า AI</div>
+
+        {/* Anthropic / Claude */}
+        <div style={{ background: "rgba(238,77,45,0.06)", border: "1px solid rgba(238,77,45,0.2)", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+          <label style={{ ...M.label, color: SHOPEE_RED, fontWeight: 700 }}>🤖 Anthropic API Key (Claude)</label>
+          <input style={M.input} type="password" placeholder="sk-ant-..." value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} />
+          <div style={{ fontSize: 10, color: TEXT_MUTED }}>ใช้สำหรับ: สแกน URL/รูป, เจนแคปชั่น (Claude), AI Video script, สคริปต์คลิป</div>
+        </div>
+
+        {/* Gemini / Google */}
+        <div style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+          <label style={{ ...M.label, color: GEMINI_PURPLE, fontWeight: 700 }}>✨ Google Gemini API Key</label>
+          <input style={M.input} type="password" placeholder="AIza..." value={geminiKeyInput} onChange={e => setGeminiKeyInput(e.target.value)} />
+          <div style={{ fontSize: 10, color: TEXT_MUTED, marginBottom: 8 }}>ใช้สำหรับ: Gemini Flash (เจนแคปชั่น/สคริปต์) + Google Veo 2 (สร้างวิดีโอ AI) • รับที่ aistudio.google.com</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={{ flex: 1, padding: "8px", borderRadius: 8, border: `1px solid ${GEMINI_PURPLE}`, background: "transparent", color: GEMINI_PURPLE, fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: testingGemini ? 0.6 : 1 }} onClick={testGeminiKey} disabled={testingGemini}>
+              {testingGemini ? "⏳ ทดสอบ..." : "🧪 ทดสอบ Gemini Key"}
+            </button>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "12px", marginBottom: "10px" }}>
-            <label style={{ ...M.label, color: "#aaa", fontWeight: "700" }}>🖤 TikTok Session / Cookie</label>
-            <input type="password" placeholder="วาง TikTok Session ID หรือ Cookie ที่นี่" value={tiktokSession} onChange={e => setTiktokSession(e.target.value)} style={M.input} />
+          {geminiTestResult && (
+            <div style={{ marginTop: 8, fontSize: 11, padding: "7px 10px", borderRadius: 7, background: geminiTestResult.startsWith("✅") ? "rgba(39,174,96,0.1)" : "rgba(238,77,45,0.1)", border: `1px solid ${geminiTestResult.startsWith("✅") ? "rgba(39,174,96,0.3)" : "rgba(238,77,45,0.3)"}`, color: geminiTestResult.startsWith("✅") ? GREEN : "#FF6B6B" }}>
+              {geminiTestResult}
+            </div>
+          )}
+          <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(66,133,244,0.06)", borderRadius: 8, border: "1px solid rgba(66,133,244,0.15)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: GOOGLE_BLUE, marginBottom: 4 }}>🎬 Google Veo 2 (Video Generation)</div>
+            <div style={{ fontSize: 10, color: TEXT_MUTED, lineHeight: 1.6 }}>
+              • ใช้ Key เดียวกับ Gemini<br />
+              • ต้องเปิดใช้ "Veo API" ที่ Google Cloud Console<br />
+              • Quota: สร้างวิดีโอได้จำกัดต่อวัน (ดูที่ AI Studio)<br />
+              • คลิปที่สร้างจะถูกเพิ่มลงคิวโพสต์อัตโนมัติ
+            </div>
           </div>
-          <label style={M.label}>ระยะเวลาหน่วงระหว่างคลิป (วินาที)</label>
-          <input type="number" min="30" value={delayInput} onChange={e => setDelayInput(e.target.value)} placeholder="แนะนำ 60 วินาทีขึ้นไป" style={M.input} />
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "14px 0" }}>
-            <input type="checkbox" id="autoRetry" checked={autoRetry} onChange={e => setAutoRetry(e.target.checked)} style={{ width: "16px", height: "16px", cursor: "pointer" }} />
-            <label htmlFor="autoRetry" style={{ fontSize: "12px", color: TEXT_MAIN, cursor: "pointer" }}>เปิดใช้งานลองใหม่อัตโนมัติ (Auto-Retry) เมื่อบอทอัปโหลดพังหรือหลุดคิว</label>
+        </div>
+
+        {/* Session cookies */}
+        <div style={{ paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MAIN, marginBottom: 4 }}>ตั้งค่าบอทอัปโหลด</div>
+          <div style={{ background: "rgba(238,77,45,0.07)", border: "1px solid rgba(238,77,45,0.2)", borderRadius: 10, padding: 12, marginBottom: 8 }}>
+            <label style={{ ...M.label, color: SHOPEE_ORANGE, fontWeight: 700 }}>🧡 Shopee Session / Cookie</label>
+            <input type="password" placeholder="วาง Shopee Session ID" value={shopeeSession} onChange={e => setShopeeSession(e.target.value)} style={M.input} />
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: 12, marginBottom: 8 }}>
+            <label style={{ ...M.label, color: "#aaa", fontWeight: 700 }}>🖤 TikTok Session / Cookie</label>
+            <input type="password" placeholder="วาง TikTok Session ID" value={tiktokSession} onChange={e => setTiktokSession(e.target.value)} style={M.input} />
+          </div>
+          <label style={M.label}>หน่วงเวลาระหว่างคลิป (วินาที)</label>
+          <input type="number" min="30" value={delayInput} onChange={e => setDelayInput(e.target.value)} style={M.input} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
+            <input type="checkbox" id="autoRetry" checked={autoRetry} onChange={e => setAutoRetry(e.target.checked)} style={{ width: 16, height: 16 }} />
+            <label htmlFor="autoRetry" style={{ fontSize: 12, color: TEXT_MAIN, cursor: "pointer" }}>Auto-Retry เมื่อบอทอัปโหลดล้มเหลว</label>
           </div>
         </div>
         <button style={M.btnP} onClick={saveSettings}>💾 บันทึกการตั้งค่าทั้งหมด</button>
       </div>
+
+      {/* Agent log */}
       <div style={{ ...M.card, marginTop: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <div style={M.cardT}>🤖 สถานะ Agent (Bot หลังบ้าน)</div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "12px", color: agentEnabled ? GREEN : TEXT_MUTED }}>{agentEnabled ? "กำลังทำงาน" : "หยุดอยู่"}</span>
-            <div onClick={() => setAgentEnabled(p => !p)} style={{ width: "44px", height: "24px", borderRadius: "12px", background: agentEnabled ? GREEN : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
-              <div style={{ position: "absolute", top: "3px", left: agentEnabled ? "23px" : "3px", width: "18px", height: "18px", borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={M.cardT}>🤖 สถานะ Agent</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: agentEnabled ? GREEN : TEXT_MUTED }}>{agentEnabled ? "กำลังทำงาน" : "หยุด"}</span>
+            <div onClick={() => setAgentEnabled(p => !p)} style={{ width: 44, height: 24, borderRadius: 12, background: agentEnabled ? GREEN : "rgba(255,255,255,0.15)", cursor: "pointer", position: "relative" }}>
+              <div style={{ position: "absolute", top: 3, left: agentEnabled ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", marginBottom: "10px", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: agentEnabled ? GREEN : "#e74c3c", flexShrink: 0 }} />
-          <span style={{ fontSize: "12px", color: TEXT_MAIN, fontWeight: "600" }}>{agentEnabled ? "สถานะ Agent: กำลังเชื่อมต่อและรอคำสั่ง..." : "สถานะ Agent: ปิดใช้งาน (Toggle เพื่อเปิด)"}</span>
-          <span style={{ marginLeft: "auto", fontSize: "11px", color: TEXT_MUTED }}>Bot: {isBotRunning ? botStatus : "Idle"}</span>
+        <div ref={logRef} style={{ background: "#000", borderRadius: 8, padding: "10px 12px", height: 140, overflowY: "auto", fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, border: "1px solid rgba(255,255,255,0.08)" }}>
+          {agentLogs.map((log, i) => (<div key={i} style={{ color: log.includes("สำเร็จ") || log.includes("OK") ? GREEN : log.includes("ข้อผิดพลาด") ? "#e74c3c" : TEXT_MUTED }}>{log}</div>))}
         </div>
-        <div ref={logRef} style={{ background: "#000", borderRadius: "8px", padding: "10px 12px", height: "160px", overflowY: "auto", fontFamily: "monospace", fontSize: "11px", lineHeight: "1.6", border: "1px solid rgba(255,255,255,0.08)" }}>
-          {agentLogs.map((log, i) => (<div key={i} style={{ color: log.includes("สำเร็จ") || log.includes("OK") || log.includes("เริ่ม") ? GREEN : log.includes("ข้อผิดพลาด") || log.includes("Error") ? "#e74c3c" : TEXT_MUTED }}>{log}</div>))}
-        </div>
-        <div style={{ marginTop: "8px", fontSize: "11px", color: TEXT_MUTED, textAlign: "center" }}>Agent Log อัปเดตทุก 2.5 วินาที • DB: {isSupabaseConfigured ? "เชื่อมต่อ Supabase แล้ว" : "RAM เท่านั้น"}</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: TEXT_MUTED, textAlign: "center" }}>DB: {isSupabaseConfigured ? "Supabase เชื่อมต่อแล้ว" : "RAM เท่านั้น"}</div>
       </div>
     </div>
   );
@@ -1058,13 +1259,10 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
   };
 
   const addItem = async () => {
-    if (items.length >= 10) return alert("เพิ่มได้สูงสุด 10 รายการครับ");
+    if (items.length >= 10) return alert("เพิ่มได้สูงสุด 10 รายการ");
     let newId = `local-${Date.now()}`;
     if (isSupabaseConfigured) {
-      try {
-        const { data } = await supabase.from("tasks").insert({ user_key: licKey, platform: queueTab, video_name: "", caption: "", link: "", status: "ready", queue: false }).select().single();
-        if (data) newId = data.id;
-      } catch {}
+      try { const { data } = await supabase.from("tasks").insert({ user_key: licKey, platform: queueTab, video_name: "", caption: "", link: "", status: "ready", queue: false }).select().single(); if (data) newId = data.id; } catch {}
     }
     setItems(prev => [...prev, { id: newId, videoFile: null, videoName: "", caption: "", link: "", status: "ready", queue: false, errorImg: "" }]);
   };
@@ -1080,11 +1278,8 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
   const saveItemToDB = async (id) => {
     if (!isSupabaseConfigured) return;
     const allItems = queueTab === "shopee" ? shopeeItems : tiktokItems;
-    const item = allItems.find(i => i.id === id);
-    if (!item) return;
-    try {
-      await supabase.from("tasks").update({ caption: item.caption, link: item.link || "", video_name: item.videoName, status: item.status, queue: item.queue, updated_at: new Date().toISOString() }).eq("id", id);
-    } catch {}
+    const item = allItems.find(i => i.id === id); if (!item) return;
+    try { await supabase.from("tasks").update({ caption: item.caption, link: item.link || "", video_name: item.videoName, status: item.status, queue: item.queue, updated_at: new Date().toISOString() }).eq("id", id); } catch {}
   };
 
   const handleVideoSelect = (id, e) => {
@@ -1095,31 +1290,24 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
 
   const toggleQueue = async (id) => {
     let updated;
-    setItems(prev => prev.map(i => { if (i.id !== id) return i; if (!i.videoName) { alert("กรุณาเลือกคลิปวิดีโอก่อนครับ"); return i; } updated = { ...i, queue: !i.queue, status: !i.queue ? "queued" : "ready" }; return updated; }));
-    if (isSupabaseConfigured && updated) {
-      try { await supabase.from("tasks").update({ queue: updated.queue, status: updated.status, updated_at: new Date().toISOString() }).eq("id", id); } catch {}
-    }
+    setItems(prev => prev.map(i => { if (i.id !== id) return i; if (!i.videoName) { alert("กรุณาเลือกคลิปวิดีโอก่อน"); return i; } updated = { ...i, queue: !i.queue, status: !i.queue ? "queued" : "ready" }; return updated; }));
+    if (isSupabaseConfigured && updated) { try { await supabase.from("tasks").update({ queue: updated.queue, status: updated.status, updated_at: new Date().toISOString() }).eq("id", id); } catch {} }
   };
 
   const queueAll = async () => {
     setItems(prev => prev.map(i => i.videoName ? { ...i, queue: true, status: "queued" } : i));
-    if (isSupabaseConfigured) {
-      try {
-        const ids = items.filter(i => i.videoName).map(i => i.id);
-        for (const id of ids) { await supabase.from("tasks").update({ queue: true, status: "queued", updated_at: new Date().toISOString() }).eq("id", id); }
-      } catch {}
-    }
+    if (isSupabaseConfigured) { try { for (const id of items.filter(i => i.videoName).map(i => i.id)) { await supabase.from("tasks").update({ queue: true, status: "queued", updated_at: new Date().toISOString() }).eq("id", id); } } catch {} }
   };
 
   const shareItem = async (item) => {
     if (!item.videoFile) return;
     try {
-      const file = item.videoFile instanceof File ? item.videoFile : new File([item.videoFile], item.videoName, { type: "video/webm" });
+      const file = item.videoFile instanceof File ? item.videoFile : new File([item.videoFile], item.videoName, { type: "video/mp4" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: "ClipAI Post", text: item.caption + (item.link ? `\n\n${item.link}` : "") });
         updateItem(item.id, "status", "done");
         if (isSupabaseConfigured) { try { await supabase.from("tasks").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", item.id); } catch {} }
-      } else { alert("อุปกรณ์ไม่รองรับการแชร์ไฟล์ กรุณาดาวน์โหลดและโพสเอง"); }
+      } else { alert("ดาวน์โหลดแล้วโพสเองครับ"); }
     } catch {}
   };
 
@@ -1127,45 +1315,44 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
   const platformLabel = queueTab === "shopee" ? "🧡 Shopee" : "🖤 TikTok";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-      <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", padding: "4px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.08)" }}>
-        <button onClick={() => setQueueTab("shopee")} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: queueTab === "shopee" ? SHOPEE_RED : "transparent", color: "#fff" }}>🧡 คิว Shopee ({shopeeItems.filter(i => i.queue).length}/{shopeeItems.length})</button>
-        <button onClick={() => setQueueTab("tiktok")} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: queueTab === "tiktok" ? "#222" : "transparent", color: "#fff" }}>🖤 คิว TikTok ({tiktokItems.filter(i => i.queue).length}/{tiktokItems.length})</button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", padding: 4, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)" }}>
+        <button onClick={() => setQueueTab("shopee")} style={{ flex: 1, padding: 8, borderRadius: 8, border: "none", fontSize: 13, fontWeight: "bold", cursor: "pointer", background: queueTab === "shopee" ? SHOPEE_RED : "transparent", color: "#fff" }}>🧡 Shopee ({shopeeItems.filter(i => i.queue).length}/{shopeeItems.length})</button>
+        <button onClick={() => setQueueTab("tiktok")} style={{ flex: 1, padding: 8, borderRadius: 8, border: "none", fontSize: 13, fontWeight: "bold", cursor: "pointer", background: queueTab === "tiktok" ? "#222" : "transparent", color: "#fff" }}>🖤 TikTok ({tiktokItems.filter(i => i.queue).length}/{tiktokItems.length})</button>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", padding: "6px 10px", borderRadius: "8px", background: "rgba(255,255,255,0.03)" }}>
-        <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: isSupabaseConfigured ? GREEN : SHOPEE_ORANGE }} />
-        <span style={{ color: isSupabaseConfigured ? GREEN : SHOPEE_ORANGE }}>{isSupabaseConfigured ? "บันทึกลง Supabase อัตโนมัติ" : "ข้อมูลอยู่ใน RAM เท่านั้น"}</span>
-        {dbLoading && <span style={{ color: TEXT_MUTED, marginLeft: "auto" }}>⏳ กำลังโหลด...</span>}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: isSupabaseConfigured ? GREEN : SHOPEE_ORANGE }} />
+        <span style={{ color: isSupabaseConfigured ? GREEN : SHOPEE_ORANGE }}>{isSupabaseConfigured ? "บันทึกลง Supabase อัตโนมัติ" : "ข้อมูลใน RAM"}</span>
+        {dbLoading && <span style={{ color: TEXT_MUTED, marginLeft: "auto" }}>⏳ โหลด...</span>}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-        {[["📋 ทั้งหมด", items.length, TEXT_MUTED], ["⏳ ในคิว", items.filter(i => i.queue).length, SHOPEE_ORANGE], ["✅ พร้อม", items.filter(i => !i.queue && i.status === "ready").length, GREEN]].map(([label, val, color]) => (<div key={label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px", padding: "10px", textAlign: "center", border: "1px solid rgba(255,255,255,0.07)" }}><div style={{ fontSize: "20px", fontWeight: "800", color }}>{val}</div><div style={{ fontSize: "10px", color: TEXT_MUTED }}>{label}</div></div>))}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        {[["📋 ทั้งหมด", items.length, TEXT_MUTED], ["⏳ ในคิว", items.filter(i => i.queue).length, SHOPEE_ORANGE], ["✅ พร้อม", items.filter(i => !i.queue && i.status === "ready").length, GREEN]].map(([label, val, color]) => (<div key={label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 10, textAlign: "center", border: "1px solid rgba(255,255,255,0.07)" }}><div style={{ fontSize: 20, fontWeight: 800, color }}>{val}</div><div style={{ fontSize: 10, color: TEXT_MUTED }}>{label}</div></div>))}
       </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button onClick={addItem} disabled={items.length >= 10} style={{ flex: 1, padding: "9px", borderRadius: "10px", border: `2px dashed ${platformColor}`, background: "transparent", color: platformColor, fontSize: "13px", fontWeight: "bold", cursor: "pointer", opacity: items.length >= 10 ? 0.4 : 1 }}>➕ เพิ่มรายการ ({items.length}/10)</button>
-        <button onClick={queueAll} style={{ flex: 1, padding: "9px", borderRadius: "10px", border: "none", background: platformColor, color: "#fff", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}><Layers size={13} style={{ display: "inline", marginRight: 4 }} />ส่งทั้งหมดเข้าคิว</button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={addItem} disabled={items.length >= 10} style={{ flex: 1, padding: 9, borderRadius: 10, border: `2px dashed ${platformColor}`, background: "transparent", color: platformColor, fontSize: 13, fontWeight: "bold", cursor: "pointer", opacity: items.length >= 10 ? 0.4 : 1 }}>➕ เพิ่ม ({items.length}/10)</button>
+        <button onClick={queueAll} style={{ flex: 1, padding: 9, borderRadius: 10, border: "none", background: platformColor, color: "#fff", fontSize: 13, fontWeight: "bold", cursor: "pointer" }}><Layers size={13} style={{ display: "inline", marginRight: 4 }} />ส่งทั้งหมดเข้าคิว</button>
       </div>
       {items.map((item, idx) => (
-        <div key={item.id} style={{ background: BG_CARD, borderRadius: "14px", padding: "14px", border: `1px solid ${item.queue ? "rgba(245,166,35,0.4)" : item.status === "done" ? "rgba(39,174,96,0.3)" : "rgba(255,255,255,0.07)"}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <div style={{ fontSize: "13px", fontWeight: "700", color: item.status === "done" ? GREEN : item.queue ? SHOPEE_ORANGE : TEXT_MAIN }}>
+        <div key={item.id} style={{ background: BG_CARD, borderRadius: 14, padding: 14, border: `1px solid ${item.queue ? "rgba(245,166,35,0.4)" : item.status === "done" ? "rgba(39,174,96,0.3)" : "rgba(255,255,255,0.07)"}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: item.status === "done" ? GREEN : item.queue ? SHOPEE_ORANGE : TEXT_MAIN }}>
               {item.status === "done" ? "✅" : item.queue ? "⏳" : "📋"} รายการที่ {idx + 1}
-              {item.queue && <span style={{ fontSize: "10px", marginLeft: "6px", color: SHOPEE_ORANGE }}>(อยู่ในคิว)</span>}
-              {item.status === "done" && <span style={{ fontSize: "10px", marginLeft: "6px", color: GREEN }}>(โพสแล้ว)</span>}
+              {item.queue && <span style={{ fontSize: 10, marginLeft: 6, color: SHOPEE_ORANGE }}>(ในคิว)</span>}
+              {item.status === "done" && <span style={{ fontSize: 10, marginLeft: 6, color: GREEN }}>(โพสแล้ว)</span>}
             </div>
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              {item.status === "failed" && (<button onClick={() => alert(`URL รูปพัง: ${item.errorImg}`)} style={{ display: "flex", alignItems: "center", gap: "2px", background: "rgba(238,77,45,0.2)", color: "#FF8B8B", border: "1px solid rgba(238,77,45,0.4)", borderRadius: "4px", padding: "3px 7px", fontSize: "11px", cursor: "pointer" }}><Eye size={11} /> ดูรูปพัง</button>)}
-              {items.length > 1 && (<button onClick={() => removeItem(item.id)} style={{ background: "rgba(231,76,60,0.15)", border: "none", color: "#e74c3c", borderRadius: "6px", padding: "3px 8px", fontSize: "12px", cursor: "pointer" }}>✕ ลบ</button>)}
+            <div style={{ display: "flex", gap: 6 }}>
+              {items.length > 1 && <button onClick={() => removeItem(item.id)} style={{ background: "rgba(231,76,60,0.15)", border: "none", color: "#e74c3c", borderRadius: 6, padding: "3px 8px", fontSize: 12, cursor: "pointer" }}>✕</button>}
             </div>
           </div>
           <input ref={el => videoRefs.current[item.id] = el} type="file" accept="video/*" style={{ display: "none" }} onChange={e => handleVideoSelect(item.id, e)} />
-          <button onClick={() => videoRefs.current[item.id]?.click()} style={{ width: "100%", padding: "9px", borderRadius: "8px", border: `1px dashed ${item.videoName ? "rgba(39,174,96,0.5)" : "rgba(255,255,255,0.15)"}`, background: item.videoName ? "rgba(39,174,96,0.07)" : "rgba(255,255,255,0.03)", color: item.videoName ? GREEN : TEXT_MUTED, fontSize: "12px", cursor: "pointer", marginBottom: "8px", textAlign: "left" }}>{item.videoName ? `🎬 ${item.videoName}` : "📁 กดเลือกไฟล์วิดีโอ..."}</button>
-          <textarea placeholder="พิมพ์หรือวางแคปชั่นสำหรับคลิปนี้..." value={item.caption} onChange={e => updateItem(item.id, "caption", e.target.value)} onBlur={() => saveItemToDB(item.id)} rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", padding: "9px 12px", color: TEXT_MAIN, fontSize: "12px", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "'Segoe UI','Noto Sans Thai',sans-serif", marginBottom: "8px" }} />
-          <input placeholder="🔗 ลิงก์สินค้า (Shopee/TikTok)..." value={item.link || ""} onChange={e => updateItem(item.id, "link", e.target.value)} onBlur={() => saveItemToDB(item.id)} style={{ width: "100%", background: "rgba(255,165,0,0.07)", border: "1px solid rgba(255,165,0,0.25)", borderRadius: "8px", padding: "9px 12px", color: TEXT_MAIN, fontSize: "12px", outline: "none", boxSizing: "border-box", marginBottom: "8px" }} />
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => toggleQueue(item.id)} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer", color: "#fff", background: item.queue ? "#D35400" : item.videoName ? GREEN : "rgba(255,255,255,0.1)" }}>
+          <button onClick={() => videoRefs.current[item.id]?.click()} style={{ width: "100%", padding: 9, borderRadius: 8, border: `1px dashed ${item.videoName ? "rgba(39,174,96,0.5)" : "rgba(255,255,255,0.15)"}`, background: item.videoName ? "rgba(39,174,96,0.07)" : "rgba(255,255,255,0.03)", color: item.videoName ? GREEN : TEXT_MUTED, fontSize: 12, cursor: "pointer", marginBottom: 8, textAlign: "left" }}>{item.videoName ? `🎬 ${item.videoName}` : "📁 กดเลือกไฟล์วิดีโอ..."}</button>
+          <textarea placeholder="แคปชั่นสำหรับคลิปนี้..." value={item.caption} onChange={e => updateItem(item.id, "caption", e.target.value)} onBlur={() => saveItemToDB(item.id)} rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "9px 12px", color: TEXT_MAIN, fontSize: 12, outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", marginBottom: 8 }} />
+          <input placeholder="🔗 ลิงก์สินค้า..." value={item.link || ""} onChange={e => updateItem(item.id, "link", e.target.value)} onBlur={() => saveItemToDB(item.id)} style={{ width: "100%", background: "rgba(255,165,0,0.07)", border: "1px solid rgba(255,165,0,0.25)", borderRadius: 8, padding: "9px 12px", color: TEXT_MAIN, fontSize: 12, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => toggleQueue(item.id)} style={{ flex: 1, padding: 8, borderRadius: 8, border: "none", fontSize: 12, fontWeight: "bold", cursor: "pointer", color: "#fff", background: item.queue ? "#D35400" : item.videoName ? GREEN : "rgba(255,255,255,0.1)" }}>
               {item.queue ? <><ArrowLeft size={12} style={{ display: "inline", marginRight: 4 }} />ดึงออกจากคิว</> : <>ส่งเข้าคิว {platformLabel} <ArrowRight size={12} style={{ display: "inline", marginLeft: 4 }} /></>}
             </button>
-            {item.queue && item.videoFile && (<button onClick={() => shareItem(item)} style={{ padding: "8px 14px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer", color: "#fff", background: "#4F46E5" }}>📲 แชร์</button>)}
+            {item.queue && item.videoFile && <button onClick={() => shareItem(item)} style={{ padding: "8px 14px", borderRadius: 8, border: "none", fontSize: 12, fontWeight: "bold", cursor: "pointer", color: "#fff", background: "#4F46E5" }}>📲 แชร์</button>}
           </div>
         </div>
       ))}
@@ -1176,10 +1363,10 @@ function VideoQueueManager({ M, platform, licKey, shopeeItems, setShopeeItems, t
 // ─── RESULT BOX ───────────────────────────────────────────────────────────────
 function ResultBox({ text, id, copied, onCopy, queueLabel }) {
   return (
-    <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "12px", padding: "14px", fontSize: "13px", lineHeight: "1.7", whiteSpace: "pre-wrap", color: TEXT_MAIN, marginTop: "10px", border: "1px solid rgba(255,255,255,0.07)", position: "relative", paddingRight: "130px" }}>
+    <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: 14, fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap", color: TEXT_MAIN, marginTop: 10, border: "1px solid rgba(255,255,255,0.07)", position: "relative", paddingRight: 130 }}>
       {text}
-      <button style={{ position: "absolute", top: "10px", right: "10px", background: copied === id ? GREEN : "rgba(255,255,255,0.1)", border: "none", borderRadius: "6px", padding: "5px 10px", color: "#fff", fontSize: "11px", cursor: "pointer", fontWeight: "700", lineHeight: "1.4", textAlign: "center" }} onClick={() => onCopy(text, id)}>
-        {copied === id ? `${queueLabel} ส่งคิวแล้ว!` : `📋 คัดลอก\n+ ส่งคิว`}
+      <button style={{ position: "absolute", top: 10, right: 10, background: copied === id ? GREEN : "rgba(255,255,255,0.1)", border: "none", borderRadius: 6, padding: "5px 10px", color: "#fff", fontSize: 11, cursor: "pointer", fontWeight: 700, lineHeight: 1.4, textAlign: "center" }} onClick={() => onCopy(text, id)}>
+        {copied === id ? `${queueLabel} ส่งแล้ว!` : `📋 คัดลอก\n+ ส่งคิว`}
       </button>
     </div>
   );
@@ -1187,19 +1374,19 @@ function ResultBox({ text, id, copied, onCopy, queueLabel }) {
 
 // ─── SHARED STYLES ────────────────────────────────────────────────────────────
 const MS = {
-  app: { minHeight: "100vh", background: BG_DARK, color: TEXT_MAIN, paddingBottom: "40px", fontFamily: "'Segoe UI','Noto Sans Thai',sans-serif" },
+  app: { minHeight: "100vh", background: BG_DARK, color: TEXT_MAIN, paddingBottom: 40, fontFamily: "'Segoe UI','Noto Sans Thai',sans-serif" },
   hdr: { padding: "18px 20px 14px", position: "relative", overflow: "hidden" },
   glow: { position: "absolute", top: "-50%", left: "50%", transform: "translateX(-50%)", width: "200%", height: "200%", background: "radial-gradient(ellipse,rgba(255,200,0,0.08) 0%,transparent 70%)", pointerEvents: "none" },
-  logo: { fontSize: "24px", fontWeight: "900", margin: "0 0 2px" },
-  badge: (c) => ({ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "20px", padding: "3px 10px", fontSize: "11px", color: c ? c : "#fff", fontFamily: "monospace" }),
+  logo: { fontSize: 24, fontWeight: 900, margin: "0 0 2px" },
+  badge: (c) => ({ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: c ? c : "#fff", fontFamily: "monospace" }),
   body: { padding: "14px", maxWidth: "600px", margin: "0 auto" },
-  card: { background: BG_CARD, borderRadius: "16px", padding: "16px", marginBottom: "12px", border: "1px solid rgba(255,255,255,0.07)" },
-  cardT: { fontSize: "14px", fontWeight: "700", color: SHOPEE_ORANGE, marginBottom: "12px" },
-  label: { display: "block", fontSize: "12px", color: TEXT_MUTED, marginBottom: "5px" },
-  input: { width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "10px 14px", color: TEXT_MAIN, fontSize: "14px", outline: "none", boxSizing: "border-box", marginBottom: "10px" },
-  tab: (a) => ({ padding: "8px 12px", borderRadius: "10px", border: "none", fontSize: "12px", fontWeight: a ? "700" : "400", cursor: "pointer", background: a ? SHOPEE_RED : "rgba(255,255,255,0.06)", color: a ? "#fff" : TEXT_MUTED, display: "inline-flex", alignItems: "center" }),
-  tmplBtn: (a) => ({ padding: "10px", borderRadius: "10px", border: a ? `2px solid ${SHOPEE_RED}` : "1px solid rgba(255,255,255,0.1)", background: a ? "rgba(238,77,45,0.15)" : "rgba(255,255,255,0.03)", color: a ? "#fff" : TEXT_MUTED, fontSize: "13px", cursor: "pointer" }),
-  chip: { display: "inline-block", background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.25)", borderRadius: "20px", padding: "4px 10px", fontSize: "11px", color: SHOPEE_ORANGE, margin: "0 4px 4px 0", cursor: "pointer" },
-  btnP: { width: "100%", background: `linear-gradient(135deg,${SHOPEE_RED},#C0392B)`, color: "#fff", border: "none", borderRadius: "10px", padding: "11px", fontSize: "14px", fontWeight: "700", cursor: "pointer", marginTop: "10px" },
-  btnS: { width: "100%", background: `linear-gradient(135deg,${SHOPEE_ORANGE},#E67E22)`, color: "#fff", border: "none", borderRadius: "10px", padding: "11px", fontSize: "14px", fontWeight: "700", cursor: "pointer" },
+  card: { background: BG_CARD, borderRadius: 16, padding: 16, marginBottom: 12, border: "1px solid rgba(255,255,255,0.07)" },
+  cardT: { fontSize: 14, fontWeight: 700, color: SHOPEE_ORANGE, marginBottom: 12 },
+  label: { display: "block", fontSize: 12, color: TEXT_MUTED, marginBottom: 5 },
+  input: { width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 14px", color: TEXT_MAIN, fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 10 },
+  tab: (a) => ({ padding: "8px 12px", borderRadius: 10, border: "none", fontSize: 12, fontWeight: a ? 700 : 400, cursor: "pointer", background: a ? SHOPEE_RED : "rgba(255,255,255,0.06)", color: a ? "#fff" : TEXT_MUTED, display: "inline-flex", alignItems: "center" }),
+  tmplBtn: (a) => ({ padding: 10, borderRadius: 10, border: a ? `2px solid ${SHOPEE_RED}` : "1px solid rgba(255,255,255,0.1)", background: a ? "rgba(238,77,45,0.15)" : "rgba(255,255,255,0.03)", color: a ? "#fff" : TEXT_MUTED, fontSize: 13, cursor: "pointer" }),
+  chip: { display: "inline-block", background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.25)", borderRadius: 20, padding: "4px 10px", fontSize: 11, color: SHOPEE_ORANGE, margin: "0 4px 4px 0", cursor: "pointer" },
+  btnP: { width: "100%", background: `linear-gradient(135deg,${SHOPEE_RED},#C0392B)`, color: "#fff", border: "none", borderRadius: 10, padding: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 10 },
+  btnS: { width: "100%", background: `linear-gradient(135deg,${SHOPEE_ORANGE},#E67E22)`, color: "#fff", border: "none", borderRadius: 10, padding: 11, fontSize: 14, fontWeight: 700, cursor: "pointer" },
 };
