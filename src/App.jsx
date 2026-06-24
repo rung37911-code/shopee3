@@ -76,6 +76,30 @@ const TEMPLATES = [
 ];
 const HOOKS = ["หยุดเลื่อนก่อน! นี่คือสิ่งที่คุณต้องการ", "ราคานี้ต้องบอกต่อ!!", "เพื่อนบอกมา ลองแล้วติดใจ", "ปักตะกร้าไว้ก่อน ตัดสินใจทีหลัง", "ลดแล้ว! อย่าพลาด!"];
 
+// ─── JSON REPAIR HELPER ───────────────────────────────────────────────────────
+function repairJSON(raw) {
+  let s = raw.replace(/```json|```/g, "").trim();
+  const start = s.indexOf("{");
+  if (start > 0) s = s.slice(start);
+  let inStr = false, esc = false, openBraces = 0, openBrackets = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (esc) { esc = false; continue; }
+    if (c === "\\" && inStr) { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (!inStr) {
+      if (c === "{") openBraces++;
+      else if (c === "}") openBraces--;
+      else if (c === "[") openBrackets++;
+      else if (c === "]") openBrackets--;
+    }
+  }
+  if (inStr) s += '"';
+  while (openBrackets > 0) { s += "]"; openBrackets--; }
+  while (openBraces > 0) { s += "}"; openBraces--; }
+  return s;
+}
+
 // ─── CLAUDE API HELPER ────────────────────────────────────────────────────────
 async function callClaude(messages, systemPrompt = "", maxTokens = 1200) {
   const apiKey = localStorage.getItem("anthropic_api_key") || "";
@@ -102,7 +126,7 @@ async function callGemini(prompt, systemPrompt = "", model = "gemini-2.5-flash")
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents, generationConfig: { temperature: 0.9, maxOutputTokens: 1200 } }),
+    body: JSON.stringify({ contents, generationConfig: { temperature: 0.9, maxOutputTokens: 2048 } }),
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
@@ -110,30 +134,61 @@ async function callGemini(prompt, systemPrompt = "", model = "gemini-2.5-flash")
 }
 
 // ─── GOOGLE VEO (VIDEO GENERATION) HELPER ─────────────────────────────────────
-// Veo 2 via Vertex AI / Gemini API — generates short product clips
+// Veo 2 via Gemini Developer API (AI Studio key)
 async function startVeoGeneration(prompt) {
   const apiKey = localStorage.getItem("gemini_api_key") || "";
   if (!apiKey) throw new Error("ต้องการ Gemini API Key สำหรับ Google Veo");
-  // Veo 2 via Gemini Developer API (preview endpoint)
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      instances: [{ prompt }],
-      parameters: { aspectRatio: "9:16", sampleCount: 1, durationSeconds: 8 },
-    }),
-  });
+  // correct endpoint for AI Studio Veo 2
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:generateVideo?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: { text: prompt },
+        generationConfig: { durationSeconds: 8, aspectRatio: "9:16" },
+      }),
+    }
+  );
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.name; // operation name for polling
+  if (data.error) throw new Error(`Veo error: ${data.error.message}`);
+  // returns { name: "operations/xxx" }
+  const opName = data.name;
+  if (!opName) throw new Error("ไม่ได้รับ operation name จาก Veo API");
+  return opName;
 }
 
 async function pollVeoOperation(operationName) {
   const apiKey = localStorage.getItem("gemini_api_key") || "";
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`);
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`
+  );
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
-  return data; // { done, response: { videos: [{ uri, encoding }] } }
+  return data;
+}
+
+// แปลง Veo response → Blob URL
+async function extractVeoVideo(result) {
+  // format 1: response.videos[0].uri (signed URL)
+  const uri = result.response?.videos?.[0]?.uri || result.response?.video?.uri;
+  if (uri) {
+    const r = await fetch(uri);
+    const blob = await r.blob();
+    return { blob, url: URL.createObjectURL(blob) };
+  }
+  // format 2: response.videos[0].bytesBase64Encoded
+  const b64 = result.response?.videos?.[0]?.bytesBase64Encoded
+    || result.response?.video?.bytesBase64Encoded
+    || result.response?.predictions?.[0]?.bytesBase64Encoded;
+  if (b64) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: "video/mp4" });
+    return { blob, url: URL.createObjectURL(blob) };
+  }
+  throw new Error("ไม่พบข้อมูลวิดีโอใน response — กรุณาตรวจสอบสิทธิ์ Veo ใน AI Studio");
 }
 
 // ─── AI PROVIDER SELECTOR ────────────────────────────────────────────────────
@@ -320,12 +375,18 @@ function ProductScanner({ onProductFound, platform, aiProvider }) {
   const parseAIResult = async (promise) => {
     try {
       const result = await promise;
-      const clean = result.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
+      let parsed;
+      try {
+        const clean = result.replace(/```json|```/g, "").trim();
+        parsed = JSON.parse(clean);
+      } catch {
+        const repaired = repairJSON(result);
+        parsed = JSON.parse(repaired);
+      }
       setPreview(parsed);
       setStatus("✅ ดึงข้อมูลสำเร็จ! ตรวจสอบและยืนยันด้านล่าง");
     } catch (e) {
-      setStatus("❌ เกิดข้อผิดพลาด: " + e.message);
+      setStatus("❌ JSON ไม่สมบูรณ์ — ลองใหม่อีกครั้ง: " + e.message);
     }
     setLoading(false);
   };
@@ -334,7 +395,7 @@ function ProductScanner({ onProductFound, platform, aiProvider }) {
     if (!url.trim()) return;
     setLoading(true); setStatus(`🔍 ${aiProvider === "gemini" ? "Gemini" : "Claude"} กำลังอ่านข้อมูลสินค้าจาก URL...`);
     const platformHint = url.includes("shopee") ? "Shopee" : url.includes("tiktok") ? "TikTok Shop" : platform;
-    const prompt = `URL สินค้า ${platformHint}: ${url}\n\nวิเคราะห์และตอบ JSON เท่านั้น:\n{"name":"ชื่อสินค้า","price":"ราคา (ตัวเลข)","discount":"ส่วนลด%","category":"หมวดหมู่","description":"คำบรรยาย 2-3 ประโยคภาษาไทย","keywords":["kw1","kw2","kw3"],"platform":"${platformHint}"}`;
+    const prompt = `วิเคราะห์สินค้าจาก URL ${platformHint} นี้: ${url}\n\nตอบเป็น JSON เท่านั้น ห้ามมี text อื่น:\n{"name":"ชื่อสินค้าสั้น","price":"ตัวเลขราคา","discount":"ตัวเลขส่วนลด","category":"หมวดหมู่","description":"คำบรรยาย 1-2 ประโยค","keywords":["kw1","kw2","kw3"],"platform":"${platformHint}"}`;
     await parseAIResult(callAIProvider(prompt, aiProvider));
   };
 
@@ -505,28 +566,24 @@ function GoogleVeoGenerator({ M, product, price, disc, platform, onVideoReady })
       addLog(`ตรวจสอบสถานะ... (ครั้งที่ ${attempts}/${maxAttempts})`);
       try {
         const result = await pollVeoOperation(opName);
+        addLog(`response keys: ${Object.keys(result).join(", ")}`);
         if (result.done) {
           clearInterval(pollRef.current);
-          const videoData = result.response?.predictions?.[0];
-          if (videoData?.bytesBase64Encoded) {
-            // Convert base64 to blob
-            const bytes = atob(videoData.bytesBase64Encoded);
-            const arr = new Uint8Array(bytes.length);
-            for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-            const blob = new Blob([arr], { type: "video/mp4" });
-            const url = URL.createObjectURL(blob);
+          try {
+            const { blob, url } = await extractVeoVideo(result);
             setVideoUrl(url);
             setVeoStatus("done");
             setVeoProgress(100);
             addLog("✅ สร้างวิดีโอสำเร็จ! พร้อมดาวน์โหลดและเพิ่มในคิว");
             await onVideoReady(blob, `veo-${Date.now()}.mp4`);
-          } else {
-            addLog("❌ ไม่พบข้อมูลวิดีโอในผลลัพธ์");
+          } catch (extractErr) {
+            addLog(`❌ ${extractErr.message}`);
+            addLog(`raw: ${JSON.stringify(result).slice(0, 200)}`);
             setVeoStatus("error");
           }
         }
       } catch (e) {
-        addLog(`⚠️ ตรวจสอบสถานะล้มเหลว: ${e.message}`);
+        addLog(`⚠️ poll ล้มเหลว: ${e.message}`);
       }
       if (attempts >= maxAttempts) {
         clearInterval(pollRef.current);
@@ -924,8 +981,13 @@ function MainApp({ sess, onLogout }) {
     setCopied(id); setTimeout(() => setCopied(""), 2000);
     const setItems = platform === "shopee" ? setShopeeItems : setTiktokItems;
     setItems(prev => {
-      const hasEmpty = prev.find(i => !i.caption);
+      // 1) หาคิวที่มีวิดีโอแต่ยังไม่มีแคปชั่น → ใส่แคปชั่นเข้าไปก่อน
+      const hasVideoNoCaption = prev.find(i => i.videoName && !i.caption);
+      if (hasVideoNoCaption) return prev.map(i => i.id === hasVideoNoCaption.id ? { ...i, caption: text, link: link || i.link || "" } : i);
+      // 2) หาคิวที่ว่างทั้งหมด
+      const hasEmpty = prev.find(i => !i.caption && !i.videoName);
       if (hasEmpty) return prev.map(i => i.id === hasEmpty.id ? { ...i, caption: text, link: link || "" } : i);
+      // 3) สร้างรายการใหม่
       if (prev.length < 10) return [...prev, { id: `q-${Date.now()}`, videoFile: null, videoName: "", caption: text, link: link || "", status: "ready", queue: false, errorImg: "" }];
       return prev;
     });
@@ -933,17 +995,24 @@ function MainApp({ sess, onLogout }) {
 
   const sendVideoToQueue = async (blob, fileName) => {
     const setItems = platform === "shopee" ? setShopeeItems : setTiktokItems;
+    const currentCaption = (platform === "shopee" ? shopeeItems : tiktokItems).find(i => i.caption && !i.videoName)?.caption || "";
+    const currentLink = link || "";
     let newId = `q-${Date.now()}`;
     if (isSupabaseConfigured) {
       try {
-        const { data } = await supabase.from("tasks").insert({ user_key: licKey, platform, video_name: fileName, caption: "", link: "", status: "ready", queue: false }).select().single();
+        const { data } = await supabase.from("tasks").insert({ user_key: licKey, platform, video_name: fileName, caption: currentCaption, link: currentLink, status: "ready", queue: false }).select().single();
         if (data) newId = data.id;
       } catch {}
     }
     setItems(prev => {
+      // 1) หาคิวที่มีแคปชั่นแต่ไม่มีวิดีโอ → merge วิดีโอเข้าไป
+      const hasCaptionNoVideo = prev.find(i => i.caption && !i.videoName);
+      if (hasCaptionNoVideo) return prev.map(i => i.id === hasCaptionNoVideo.id ? { ...i, videoFile: blob, videoName: fileName, id: newId } : i);
+      // 2) หาคิวว่าง
       const hasEmptyVideo = prev.find(i => !i.videoName);
       if (hasEmptyVideo) return prev.map(i => i.id === hasEmptyVideo.id ? { ...i, videoFile: blob, videoName: fileName, id: newId } : i);
-      if (prev.length < 10) return [...prev, { id: newId, videoFile: blob, videoName: fileName, caption: "", link: "", status: "ready", queue: false, errorImg: "" }];
+      // 3) สร้างรายการใหม่
+      if (prev.length < 10) return [...prev, { id: newId, videoFile: blob, videoName: fileName, caption: currentCaption, link: currentLink, status: "ready", queue: false, errorImg: "" }];
       return prev;
     });
     setPage("queue");
